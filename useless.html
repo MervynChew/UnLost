@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puter AI Test</title>
+</head>
+<body>
+    <h1>Puter AI Test</h1>
+
+    <script src="https://js.puter.com/v2/"></script>
+    <script>
+        puter.ai.chat(
+            "What are the major differences between renewable and non-renewable energy sources?", 
+            { model: "gemini-3-pro-preview" }
+        ).then(response => {
+            console.log(response);   // show in browser console
+            puter.print(response);   // print on screen
+        });
+    </script>
+</body>
+</html>
