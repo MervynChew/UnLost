@@ -13,8 +13,12 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { useNavigation } from 'expo-router';
 import * as Location from 'expo-location';
 import { Colors } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake'; 
 import Constants from "expo-constants";
+import { supabase } from '../../lib/supabase';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy'; // Use the legacy import you fixed earlier
 
 // ⚠️ Ensure this path matches where you put the AnalysisResult file
 import { AnalysisResult } from "@/components/scannerPage/AnalysisResult";
@@ -39,11 +43,6 @@ export default function ScanAI() {
 
   const navigation = useNavigation(); // <--- 2. Get navigation
 
-  // ⚠️ IMPORTANT: Replace with your actual computer IP.
-  // const API_URL = "http://10.212.149.206:8000/detect";
-  // const GEMINI = "http://10.212.149.206:8000/analyze";
-
-  // 2. Add this hook at the top of your component
   // This tells the app: "I will handle the screen power, don't worry about it."
   useKeepAwake(); 
 
@@ -156,6 +155,49 @@ export default function ScanAI() {
         Alert.alert("Error", "Could not capture data.");
         setLoading(false);
       }
+    }
+  };
+
+  const handleUpload = async () => { // 1. Added 'async' here
+    if (loading) return; // Prevent double clicks
+    
+    try {
+      setLoading(true);
+    
+      // A. Start GPS in the background (Do NOT await yet)
+      // This ensures it runs while the user is browsing their gallery.
+      const locationPromise = getPreciseLocation();
+
+      // B. Pick Image (Await this, as it blocks UI)
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      // C. Check if user cancelled
+      if (pickerResult.canceled) {
+        setLoading(false);
+        return;
+      }
+
+      // D. Now wait for GPS (It's likely already finished!)
+      const locationString = await locationPromise;
+
+      // E. Get the URI correctly
+      // Expo Image Picker returns 'assets' array
+      const uri = pickerResult.assets[0].uri; 
+
+      if (uri) {
+        await sendToBackend(uri, locationString || "Unknown");
+      }
+    
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "Could not capture data.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -303,9 +345,12 @@ export default function ScanAI() {
       
       {/* 1. Nice Header Area */}
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>AI Object Scan</Text>
+        <View style={styles.scannerHeader}>
+          <Ionicons name="scan" size={36} color={Colors.light.purple }/>
+          <Text style={styles.headerTitle}>AI Scanner</Text>
+        </View>
         <Text style={styles.headerSubtitle}>
-          Center the item within the frame to detect
+          Hint: Center the item within the frame to detect
         </Text>
       </View>
 
@@ -343,6 +388,16 @@ export default function ScanAI() {
         >
           <View style={styles.captureBtnInner} />
         </TouchableOpacity>
+
+        {/* Upload image button */}
+        <TouchableOpacity
+          onPress={handleUpload}
+          disabled={loading}
+          // Apply disabled opacity if loading
+          style={[styles.uploadButton, loading && { opacity: 0.5 }]}>
+            {/* Use Ionicons "add" icon, white color */}
+            <Ionicons name="add" size={36} color="white" />
+        </TouchableOpacity>
       </View>
 
     </View>
@@ -353,7 +408,8 @@ const styles = StyleSheet.create({
   // --- Layout ---
   container: {
     flex: 1,
-    backgroundColor: "#000000ff", // Slightly lighter than pure black looks more premium
+    //backgroundColor: "#000000ff", // Slightly lighter than pure black looks more premium
+    backgroundColor: Colors.light.fakeWhite,
     alignItems: "center",
     justifyContent: "space-between", // Pushes header up and button down
     paddingVertical: 60,
@@ -363,12 +419,24 @@ const styles = StyleSheet.create({
   headerContainer: {
     alignItems: "center",
     marginBottom: 20,
+    marginTop: '-3%',
   },
   headerTitle: {
-    color: "#FFFFFF",
+    color: "black",
     fontSize: 24,
     fontWeight: "700",
     letterSpacing: 0.5,
+  },
+  scannerHeader: {
+    backgroundColor: Colors.light.yellow,
+    padding: 10,
+    paddingHorizontal: 20,
+    borderRadius: 15,
+    width: '60%',
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    //justifyContent: 'center',
   },
   headerSubtitle: {
     color: "#AAAAAA",
@@ -417,42 +485,76 @@ const styles = StyleSheet.create({
   },
 
   // --- Bottom Controls ---
-  bottomControls: {
-    alignItems: "center",
-    gap: 20,
-  },
   hintText: {
-    color: "rgba(255,255,255,0.6)",
+    color: "rgba(0, 0, 0, 0.6)",
     fontSize: 14,
     marginBottom: 10,
   },
+  // --- Bottom Controls ---
+  bottomControls: {
+    flexDirection: 'row',      // Row layout
+    justifyContent: 'center',  // Center the Capture button horizontally
+    alignItems: 'center',      // Center items vertically
+    width: '100%',             // Full width
+    // REMOVED: position: 'absolute' (This fixes the drop issue)
+    // REMOVED: bottom: 50
+    paddingHorizontal: 20,     
+    marginVertical: '7%',          // Add a little breathing room from the very bottom
+    marginBottom: '16%',
+  },
+
   captureBtn: {
-    width: 80,
-    height: 80,
+    width: 70,
+    height: 70,
     borderRadius: 40,
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 4,
     borderColor: "white",
-    marginBottom: '15%',
-    marginTop: '5%',
     
-    // Glow Effect (iOS/Android)
+    // Glow Effect
     shadowColor: Colors.light.orange,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 15,
     elevation: 10,
   },
+
   captureBtnDisabled: {
     opacity: 0.5,
   },
+
   captureBtnInner: {
-    width: 64,
-    height: 64,
+    width: 55,
+    height: 55,
     borderRadius: 32,
     backgroundColor: "white",
+  },
+
+  uploadButton: {
+    position: 'absolute',
+    right: '10%',  // Adjusted slightly for better placement as a circle
+    // Removed height: '100%'
+    
+    // Dimensions for circular button
+    width: 40,
+    height: 40,
+    borderRadius: 30, // Half of width/height makes it a circle
+    
+    // Theme color background (Using your existing orange)
+    backgroundColor: Colors.light.orange, 
+    
+    justifyContent: 'center',
+    alignItems: 'center',
+
+    // Shadows for "Floating" effect (iOS)
+    shadowColor: Colors.light.orange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    // Shadows for "Floating" effect (Android)
+    elevation: 8,
   },
 
   // --- Permissions ---
