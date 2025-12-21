@@ -224,8 +224,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-    margin: 10,
-    width: "90%",
+    minWidth: "90%",
     alignSelf: "center",
   },
   headerTitle: {
