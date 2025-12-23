@@ -31,7 +31,7 @@ app.add_middleware(
 )
 
 # Initialize the detector once when the server starts
-detector = RobustDetectorAPI(model_paths=['matricCard.pt'])
+detector = RobustDetectorAPI(model_paths=['generalItem.pt'])
 
 @app.get("/")
 def home():

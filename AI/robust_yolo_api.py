@@ -89,7 +89,7 @@ class RobustDetectorAPI:
 
         for model in self.models:
             # Run inference for each model
-            results = model.predict(img, verbose=False, conf=0.45, device=self.device, agnostic_nms=True)
+            results = model.predict(img, verbose=False, conf=0.50, device=self.device, agnostic_nms=True)
             
             if results[0].boxes and results[0].boxes.id is None:
                 # Note: 'predict' doesn't return IDs usually, only 'track' does.
