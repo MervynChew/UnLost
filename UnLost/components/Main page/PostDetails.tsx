@@ -1,18 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { useRouter, useLocalSearchParams, Stack } from "expo-router";
-import {
-  ScrollView,
-  Alert,
-  Image,
-  View,
-  StyleSheet,
-  Text,
-  Modal,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
-import { supabase } from "../../lib/supabase";
-import Header from "../General/header";
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { ScrollView, Alert, Image, View, StyleSheet, Text, Modal, TouchableOpacity, ActivityIndicator, Animated, Easing } from 'react-native';
+import { supabase } from '../../lib/supabase';
+import Header from '../General/header';
 
 
 import { Colors } from "../../constants/theme";
@@ -26,7 +16,8 @@ import PostPerson from "./PostPerson";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import Schedule from "./Schedule";
-import ScheduleDisplay from "./ScheduleDisplay";
+
+import JumpMenu from '../General/verticalNavi';
 
 
 type Props = {
@@ -38,15 +29,26 @@ type Props = {
 export default function PostDetails({ propId, onClose }: Props) {
   const router = useRouter();
 
+   // navi bar: 1. Add these at the top of PostDetails
+  const scrollRef = React.useRef<ScrollView>(null);
+
+  // Use a Record to store multiple Views by their string titles
+  const sectionRefs = React.useRef<Record<string, View | null>>({});
+
+  const [activeSection, setActiveSection] = useState("Posted by");
 
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const [postPersonName, setPostPersonName] = useState<any>("");
+  const [postPersonProfile, setPostPersonProfile] = useState();
 
 
   const [viewId, setViewerId] = useState("");
   const [ownerId, setOwnerId] = useState("");
 
-
+  const [time, setTime] = useState("");
   const [meetupDate, setMeetupDate] = useState(new Date());
   const [meetupPlace, setMeetupPlace] = useState("");
 
@@ -70,6 +72,9 @@ export default function PostDetails({ propId, onClose }: Props) {
   // Store original values to see whether user has change any details or not, to allow user to send out the reschedule if there is changes made
   const [originalMeetupDate, setOriginalMeetupDate] = useState(new Date());
   const [originalMeetupPlace, setOriginalMeetupPlace] = useState("");
+
+  // Inside PostDetails component:
+  const [sectionOffsets, setSectionOffsets] = useState<{ [key: string]: number }>({});
 
 
   const fetchPostDetails = async () => {
@@ -176,6 +181,9 @@ export default function PostDetails({ propId, onClose }: Props) {
     }
   };
 
+  // Inside your PostDetails component:
+  const fadeAnim = useRef(new Animated.Value(0)).current; // Start invisible
+  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   if (loading || !post) {
     return (
@@ -317,6 +325,50 @@ export default function PostDetails({ propId, onClose }: Props) {
     }
   };
 
+  const handleJump = (title: string) => {
+    const sectionView = sectionRefs.current[title];
+    const scrollViewNode = scrollRef.current;
+
+    // Check if both the section and the scrollview are ready
+    if (sectionView && scrollViewNode) {
+      sectionView.measureLayout(
+        scrollViewNode as any,
+        (x, y) => {
+          scrollRef.current?.scrollTo({ y: y - 10, animated: true });
+        },
+        () => { console.warn(`Measurement failed for: ${title}`); }
+      );
+    } else {
+      // This happens if the user clicks before the page has finished loading
+      console.log(`Ref for ${title} is not attached yet. Page might still be loading.`);
+    }
+  };
+
+  const showBar = () => {
+    // Fade in
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 10,
+      useNativeDriver: true,
+    }).start();
+
+    // Clear existing timer
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+
+    // Set timer to hide after 1.5 seconds of no scrolling
+    scrollTimeout.current = setTimeout(() => {
+      hideBar();
+    }, 1500);
+  };
+
+  const hideBar = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 500,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  };
 
   // Accept Schedule Request
   const handleAcceptRequest = async () => {
@@ -390,13 +442,24 @@ export default function PostDetails({ propId, onClose }: Props) {
 
   return (
     <View style={styles.mainContainer}>
+
+      {/* 2. Place the Jump Menu right under the Header */}
+      <JumpMenu 
+        sections={['Posted by', 'Tags', 'Description', 'Schedule']} 
+        onTabPress={handleJump} 
+        activeSection={activeSection}
+        opacity={fadeAnim}
+      />
+
       <Stack.Screen
         options={{
-          headerShown: false,
-          presentation: "card",
+          headerShown: false, // Hide default header
+          presentation: "card", // 'card' makes it slide from side, 'modal' makes it slide from bottom
           gestureEnabled: true,
         }}
       />
+
+      {/* 2. Make the Status Bar transparent and float ON TOP of your content */}
       <StatusBar
         style="dark"
         translucent={true}
@@ -405,28 +468,61 @@ export default function PostDetails({ propId, onClose }: Props) {
 
 
       <ScrollView
+        ref={scrollRef}
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
+        scrollEventThrottle={16} // This makes the scroll updates smooth (16ms = 60fps)
+        onScroll={(event) => {
+          showBar();
+          const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+          const scrollY = contentOffset.y;
+          
+          // 1. Detect if we are at the very bottom of the page
+          const isCloseToBottom = layoutMeasurement.height + scrollY >= contentSize.height - 20;
+
+          if (isCloseToBottom) {
+            setActiveSection("Schedule");
+            return; // Stop further checks if we're at the bottom
+          }
+
+          // 2. Normal Threshold logic for the middle sections
+          const threshold = scrollY + 160; 
+
+          if (threshold >= sectionOffsets["Schedule"]) {
+            setActiveSection("Schedule");
+          } else if (threshold >= sectionOffsets["Description"]) {
+            setActiveSection("Description");
+          } else if (threshold >= sectionOffsets["Tags"]) {
+            setActiveSection("Tags");
+          } else {
+            // If we are near the top, it must be "Posted by"
+            setActiveSection("Posted by");
+          }
+        }}
       >
         <Header
           title="Post Details"
           subtitle="Help the item find back their own parent"
         />
 
-
+        {/* The Annotated Image from Server */}
         <View style={styles.imageCard}>
+          {/* Layer A: Blurred Background */}
           <Image
             source={{ uri: post.post_image }}
             style={[StyleSheet.absoluteFill, styles.imageBackground]}
             blurRadius={30}
             resizeMode="cover"
           />
+          {/* Layer B: Dark Overlay */}
           <View
             style={[
               StyleSheet.absoluteFill,
               { backgroundColor: "rgba(0,0,0,0.2)" },
             ]}
           />
+
+          {/* Layer C: Main Image */}
           <Image
             source={{ uri: post.post_image }}
             style={styles.resultImage}
@@ -435,9 +531,30 @@ export default function PostDetails({ propId, onClose }: Props) {
         </View>
 
 
-        <Seperator title="Posted by" />
-        <PostPerson id={id} />
-        <Seperator title="Tag" />
+        {/* 3. Wrap your sections to capture their location */}
+        <View 
+          style={styles.sectionView}
+          ref={(el) => { sectionRefs.current["Posted by"] = el; }} // Keep this for handleJump
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setSectionOffsets(prev => ({ ...prev, "Posted by": y })); // Keep this for onScroll
+          }}
+        >
+          <View style={styles.sectionView}>
+            <Seperator title="Posted by" />
+            <PostPerson id={id} />
+          </View>
+        </View>
+
+        <View 
+          style={styles.sectionView}
+          ref={(el) => { sectionRefs.current["Tags"] = el; }} // Keep this for handleJump
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setSectionOffsets(prev => ({ ...prev, "Tags": y })); // Keep this for onScroll
+          }}
+        >
+          <Seperator title="Tag"/>
 
 
         <View style={styles.tagsWrapper}>
@@ -449,16 +566,65 @@ export default function PostDetails({ propId, onClose }: Props) {
             ))}
         </View>
 
+        {/* --- MODAL --- */}
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={modalVisible}
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Manage Tags</Text>
 
-        <Seperator title="Description:" />
-        <View style={styles.descriptionBox}>
-          <Text style={styles.inputDescriptionBox}>
-            {post.description || "No description provided."}
-          </Text>
+                <View style={styles.modalTagWrapper}>
+                  {post.tags && post.tags.map((tag: string, index: number) => (
+                    <View key={index} style={styles.modalTag}>
+                      <Text style={styles.modalTagText}>{tag}</Text>
+                    </View>
+                  ))}
+                  {(!post.tags || post.tags.length === 0) && (
+                    <Text style={{ color: "#999" }}>No tags yet.</Text>
+                  )}
+                </View>
+
+                {/* Close Button for Modal */}
+                <ButtonOrange 
+                  title="Close" 
+                  variant="primary" 
+                  onPress={() => setModalVisible(false)} 
+                />
+              </View>
+            </View>
+          </Modal>
         </View>
 
+        <View 
+          style={styles.sectionView}
+          ref={(el) => { sectionRefs.current["Description"] = el; }} // Keep this for handleJump
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setSectionOffsets(prev => ({ ...prev, "Description": y })); // Keep this for onScroll
+          }}
+        >
+          <Seperator title="Description:"/>
 
-        <Seperator title="Schedule" />
+          <View style={styles.descriptionBox}>
+            <Text style={styles.inputDescriptionBox}>
+              {post.description || "No description provided."}
+            </Text>
+          </View>
+        </View>
+
+        <View 
+          style={styles.sectionView}
+          ref={(el) => { sectionRefs.current["Schedule"] = el; }} // Keep this for handleJump
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setSectionOffsets(prev => ({ ...prev, "Schedule": y })); // Keep this for onScroll
+          }}
+        >
+          <Seperator title="Schedule"/>
 
 
         {/* ======================================== Different view based on the situation ======================================== */}
@@ -949,6 +1115,7 @@ export default function PostDetails({ propId, onClose }: Props) {
             </Text>
           </View>
         )}
+        </View>
 
 
         <Footer />
@@ -971,6 +1138,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingBottom: 40,
+    width: '100%',
+  },
+  header: {
+    paddingTop: 60,
+    paddingBottom: 20,
+    width: "100%",
+    alignItems: "center",
+    backgroundColor: Colors.light.white,
+    borderBottomWidth: 1,
+    borderBottomColor: "#333",
   },
   imageCard: {
     width: "90%",
@@ -991,6 +1168,20 @@ const styles = StyleSheet.create({
   },
   imageBackground: { opacity: 0.8 },
   resultImage: { width: "100%", height: "100%" },
+  resultLabel: {
+    color: "#00FF9D",
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  resultColor: {
+    color: "#FFF",
+    fontSize: 18,
+    opacity: 0.9,
+  },
+  tag: {
+    color: "black",
+  },
   tagsWrapper: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1002,6 +1193,7 @@ const styles = StyleSheet.create({
     paddingVertical: 25,
     paddingHorizontal: 20,
     borderRadius: 10,
+    alignSelf: 'center',
   },
   tagBadge: {
     flexDirection: "row",
@@ -1031,12 +1223,18 @@ const styles = StyleSheet.create({
     minHeight: 100,
     borderRadius: 10,
     padding: 10,
+    alignSelf: 'center',
   },
   inputDescriptionBox: {
     minHeight: 100,
     fontSize: 16,
     color: "#333",
     textAlignVertical: "top",
+  },
+  editButton: {
+    alignSelf: "flex-end",
+    marginRight: "5%",
+    marginTop: 10,
   },
   confirmButton: { width: "40%", minHeight: 40, marginRight: "2%" },
   rescheduleButton: { width: "40%", minHeight: 40, marginRight: "2%" },
@@ -1067,7 +1265,60 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 10,
   },
+  // --- MODAL STYLES ---
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: "85%",
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 20,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#333",
+  },
+  modalTagWrapper: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 20,
+    justifyContent: 'center',  // Centers the tags horizontally
+    width: '100%',             // Fill the width of the container
+    // REMOVED: right: '10%'
+  },
+  modalTag: {
+    backgroundColor: Colors.light.yellow,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  modalTagText: {
+    fontWeight: "600",
+    color: "#333",
+    fontSize: 14,
+  },
   scheduleSection: { width: "95%" },
+  sectionView: {
+    width: "100%",             // This is the calculation for the 5% margin
+    alignItems: "center", // Pushes the Title and Content to the start of the box
+    marginVertical: 12,
+    // NO left or absolute positioning here
+  },
   statusContainer: {
     width: "90%",
     backgroundColor: "#fff",
