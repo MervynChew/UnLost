@@ -1,167 +1,351 @@
-import React, { useState, useEffect } from 'react';
-import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { ScrollView, Alert, Image, View, StyleSheet, Text, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import Header from '../General/header';
+import React, { useState, useEffect } from "react";
+import { useRouter, useLocalSearchParams, Stack } from "expo-router";
+import {
+  ScrollView,
+  Alert,
+  Image,
+  View,
+  StyleSheet,
+  Text,
+  Modal,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import { supabase } from "../../lib/supabase";
+import Header from "../General/header";
 
 import { Colors } from "../../constants/theme";
 import { ButtonOrange } from "../General/buttonOrange";
 import BackButton from "../General/backButton";
 import Footer from "../General/footer";
-import Seperator from "../General/sectionSeperator"
-import PostPerson from "./PostPerson"
+import Seperator from "../General/sectionSeperator";
+import PostPerson from "./PostPerson";
 
-
-// 1. Import StatusBar
-import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from "@expo/vector-icons"; 
-import Schedule from './Schedule';
-import ScheduleDisplay from './ScheduleDisplay';
+import { StatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
+import Schedule from "./Schedule";
+import ScheduleDisplay from "./ScheduleDisplay";
 
 type Props = {
-  propId?: number;     // Allow passing ID directly
-  onClose?: () => void; // Allow a custom "Back" action
+  propId?: number;
+  onClose?: () => void;
 };
 
 export default function PostDetails({ propId, onClose }: Props) {
-
-  //const params = useLocalSearchParams();
   const router = useRouter();
 
   const [post, setPost] = useState<any>(null);
-  const [loading, setLoading] = useState(true); // 1. Added Loading State
-  const [modalVisible, setModalVisible] = useState(false);
-
-  const [postPersonName, setPostPersonName] = useState<any>("");
-  const [postPersonProfile, setPostPersonProfile] = useState();
+  const [loading, setLoading] = useState(true);
 
   const [viewId, setViewerId] = useState("");
   const [ownerId, setOwnerId] = useState("");
 
-  const [time, setTime] = useState("");
   const [meetupDate, setMeetupDate] = useState(new Date());
-  // 1. Add State for Place
   const [meetupPlace, setMeetupPlace] = useState("");
 
-  // 1. LOGIC CHANGE: Use the prop ID if it exists, otherwise check URL
-  // const id = propId || params.id;
   const id = propId;
 
   const [rescheduleMeeting, setRescheduleMeeting] = useState(false);
 
+  // Schedule Request States
+  const [scheduleRequest, setScheduleRequest] = useState<any>(null);
+  const [hasScheduleRequest, setHasScheduleRequest] = useState(false);
+  const [isPostOwner, setIsPostOwner] = useState(false);
+  const [isRequester, setIsRequester] = useState(false);
   
+  // Track who last modified the request
+  const [lastModifiedBy, setLastModifiedBy] = useState<string>("");
+
+  // Store original values to see whether user has change any details or not, to allow user to send out the reschedule if there is changes made
+  const [originalMeetupDate, setOriginalMeetupDate] = useState(new Date());
+  const [originalMeetupPlace, setOriginalMeetupPlace] = useState("");
+
   const fetchPostDetails = async () => {
     if (!id) return;
 
-    // Start loading
     setLoading(true);
 
-    const {data, error} = await supabase
-      .from('posts')
-      .select('*, profiles(full_name, profile_picture)') // fixed typo: profile_picture -> profile_image usually
-      .eq('post_id', id)
+    const { data, error } = await supabase
+      .from("posts")
+      .select("*, profiles(full_name, profile_picture)")
+      .eq("post_id", id)
       .single();
 
     if (error) {
       console.log(error);
       Alert.alert("Error", "Could not fetch item details.");
-    }
-    else {
+    } else {
       setPost(data);
+      setOwnerId(data.user_id);
     }
-    
-    // Stop loading
+
     setLoading(false);
-    setOwnerId(data.user_id);
-  }
+  };
 
   const getViewer = async () => {
-    const {data: { session },} = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (!session) return;
 
     setViewerId(session.user.id);
-  }
+  };
+
+  // Fetch Existing Schedule Request
+  const fetchScheduleRequest = async () => {
+    if (!id) return;
+
+    const { data, error } = await supabase
+      .from("schedule_requests")
+      .select("*")
+      .eq("post_id", Number(id))
+      .single();
+
+    if (error) {
+      setHasScheduleRequest(false);
+      setScheduleRequest(null);
+      setLastModifiedBy("");
+    } else if (data) {
+      setScheduleRequest(data);
+      setHasScheduleRequest(true);
+      setLastModifiedBy(data.last_modified_by || data.owner_id);
+
+      if (data.meet_date && data.meet_time) {
+        const dateTimeString = `${data.meet_date}T${data.meet_time}`;
+        const dateObj = new Date(dateTimeString);
+        setMeetupDate(dateObj);
+        setOriginalMeetupDate(dateObj); // store original details
+      }
+      if (data.location) {
+        setMeetupPlace(data.location);
+        setOriginalMeetupPlace(data.location); // store original details
+      }
+    }
+  };
+
+  // Determine User Role
+  useEffect(() => {
+    if (viewId && ownerId) {
+      setIsPostOwner(viewId === ownerId);
+    }
+
+    if (viewId && scheduleRequest) {
+      setIsRequester(viewId === scheduleRequest.owner_id);
+    }
+  }, [viewId, ownerId, scheduleRequest]);
 
   useEffect(() => {
     fetchPostDetails();
     getViewer();
-  },[id]);
+    fetchScheduleRequest();
+  }, [id]);
 
   const handleBack = () => {
     if (onClose) {
-      onClose(); // If used as a component, close the Modal
+      onClose();
     } else {
-      router.back(); // If used as a page, go back in history
+      router.back();
     }
   };
 
-  // 2. CRASH FIX: Don't render if data is missing
   if (loading || !post) {
     return (
-      <View style={[styles.mainContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View
+        style={[
+          styles.mainContainer,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
         <ActivityIndicator size="large" color={Colors.light.purple} />
       </View>
     );
-  };
-
-
+  }
 
   const handleScheduleUpdate = (newDate: Date) => {
-    console.log("Full Date & Time received:", newDate.toLocaleString()); // <--- This will now print!
+    console.log("Full Date & Time received:", newDate.toLocaleString());
     setMeetupDate(newDate);
   };
 
-  // 3. The final submit logic (for the orange button)
-  const submitToDatabase = async () => {
+  // Check if anything changed when user in the reschedule page
+  const hasChanges = () => {
+    if (!hasScheduleRequest) return true; // For new requests always allow
+
+    // convert to same format for data comparison
+    const currentDateTime = meetupDate.getTime();
+    const originalDateTime = originalMeetupDate.getTime();
     
+    const dateChanged = currentDateTime !== originalDateTime;
+    const placeChanged = meetupPlace.trim() !== originalMeetupPlace.trim();
+
+    return dateChanged || placeChanged;
+  };
+
+  // Submit or Update Request
+  const submitToDatabase = async () => {
+    if (!meetupDate || !meetupPlace) {
+      Alert.alert(
+        "Failed To Submit Request",
+        "Please ensure that the date, time and meeting point are selected before submitting."
+      );
+      return;
+    }
+
+    // Check if anything changed during reschedule 
+    if (hasScheduleRequest && !hasChanges()) {
+      Alert.alert(
+        "No Changes Made",
+        "Please modify the date, time, or location before updating the request."
+      );
+      return;
+    }
+
     const year = meetupDate.getFullYear();
-    const month = String(meetupDate.getMonth() + 1).padStart(2, '0'); // Months are 0-11
-    const day = String(meetupDate.getDate()).padStart(2, '0');
+    const month = String(meetupDate.getMonth() + 1).padStart(2, "0");
+    const day = String(meetupDate.getDate()).padStart(2, "0");
     const localDateString = `${year}-${month}-${day}`;
 
-    // 2. Get the Local Time for the "meet_time" column
-    // This gives "17:30:00" in YOUR timezone (24-hour format)
-    const hours = String(meetupDate.getHours()).padStart(2, '0');
-    const minutes = String(meetupDate.getMinutes()).padStart(2, '0');
+    const hours = String(meetupDate.getHours()).padStart(2, "0");
+    const minutes = String(meetupDate.getMinutes()).padStart(2, "0");
     const localTimeString = `${hours}:${minutes}:00`;
 
-    console.log("Sending Local Time:", localTimeString); // Check your console!
+    // if updating an existing request (means it is reschedule)
+    if (hasScheduleRequest && scheduleRequest) {
+      const updateData = {
+        location: meetupPlace,
+        meet_date: localDateString,
+        meet_time: localTimeString,
+        status: "pending",
+        last_modified_by: viewId,
+      };
 
-    const insertData = {
-      post_id: id,
-      owner_id: viewId, // The person claiming
-      location: meetupPlace,
-      
-      // Send them separately
-      meet_date: localDateString,
-      meet_time: localTimeString
-    };
-    
-    const { error } = await supabase.from('schedule_requests').insert(insertData);
-    
-    if (error) Alert.alert("Error", error.message);
-    else Alert.alert("Success", "Request Sent!");
-  }
+      const { data, error } = await supabase
+        .from("schedule_requests")
+        .update(updateData)
+        .eq("request_id", scheduleRequest.request_id)
+        .select();
 
-  console.log("Reschedule State is:", rescheduleMeeting);
+      if (error) {
+        Alert.alert("Error", `Failed to update: ${error.message}`);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        Alert.alert("Error", "Failed to update the request. Please try again.");
+        return;
+      }
+
+      Alert.alert("Success", "Meeting request updated and waiting for confirmation!");
+      setRescheduleMeeting(false);
+      await fetchScheduleRequest();
+    }
+    // create a new request
+    else {
+      const insertData = {
+        post_id: Number(id),
+        owner_id: viewId,
+        location: meetupPlace,
+        meet_date: localDateString,
+        meet_time: localTimeString,
+        status: "pending",
+        last_modified_by: viewId,
+      };
+
+      const { data, error } = await supabase
+        .from("schedule_requests")
+        .insert(insertData)
+        .select();
+
+      if (error) {
+        Alert.alert("Error", `Failed to create request: ${error.message}`);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        Alert.alert("Error", "Failed to create the request. Please try again.");
+        return;
+      }
+
+      Alert.alert("Success", "Request Sent!");
+      setRescheduleMeeting(false); // reset reschedule state after creating new request
+      await fetchScheduleRequest();
+    }
+  };
+
+  // Accept Schedule Request
+  const handleAcceptRequest = async () => {
+    if (!scheduleRequest) return;
+
+    const { data, error } = await supabase
+      .from("schedule_requests")
+      .update({ status: "accepted" })
+      .eq("request_id", scheduleRequest.request_id)
+      .select();
+
+    if (error) {
+      Alert.alert("Error", `Failed to accept: ${error.message}`);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      Alert.alert("Error", "Failed to accept the request. Please try again.");
+      return;
+    }
+
+    Alert.alert("Success", "Meeting confirmed!");
+    await fetchScheduleRequest();
+  };
+
+  // Cancel Schedule Request (for owner only, and delete the meeting request from database)
+  const handleCancelRequest = async () => {
+    if (!scheduleRequest) return;
+
+    Alert.alert(
+      "Cancel Meeting",
+      "Are you sure you want to cancel this meeting request? This will permanently delete the request.",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            const { data, error } = await supabase
+              .from("schedule_requests")
+              .delete()
+              .eq("request_id", scheduleRequest.request_id)
+              .select();
+
+            if (error) {
+              Alert.alert("Error", `Failed to delete: ${error.message}`);
+              return;
+            }
+
+            Alert.alert("Cancelled", "The meeting request has been deleted.");
+            setScheduleRequest(null);
+            setHasScheduleRequest(false);
+            setMeetupPlace("");
+            setMeetupDate(new Date());
+            setRescheduleMeeting(false);
+            setLastModifiedBy("");
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.mainContainer}>
-
-      <Stack.Screen 
+      <Stack.Screen
         options={{
-          headerShown: false, // Hide default header
-          presentation: 'card', // 'card' makes it slide from side, 'modal' makes it slide from bottom
+          headerShown: false,
+          presentation: "card",
           gestureEnabled: true,
-        }} 
+        }}
       />
-
-      {/* 2. Make the Status Bar transparent and float ON TOP of your content */}
-      <StatusBar 
-        style="dark" 
-        translucent={true} 
-        backgroundColor="transparent" 
+      <StatusBar
+        style="dark"
+        translucent={true}
+        backgroundColor="transparent"
       />
 
       <ScrollView
@@ -171,27 +355,21 @@ export default function PostDetails({ propId, onClose }: Props) {
         <Header
           title="Post Details"
           subtitle="Help the item find back their own parent"
-        ></Header>
+        />
 
-        {/* The Annotated Image from Server */}
         <View style={styles.imageCard}>
-          {/* Layer A: Blurred Background */}
           <Image
             source={{ uri: post.post_image }}
             style={[StyleSheet.absoluteFill, styles.imageBackground]}
-            blurRadius={30} 
+            blurRadius={30}
             resizeMode="cover"
           />
-
-          {/* Layer B: Dark Overlay */}
           <View
             style={[
               StyleSheet.absoluteFill,
               { backgroundColor: "rgba(0,0,0,0.2)" },
             ]}
           />
-
-          {/* Layer C: Main Image */}
           <Image
             source={{ uri: post.post_image }}
             style={styles.resultImage}
@@ -199,112 +377,528 @@ export default function PostDetails({ propId, onClose }: Props) {
           />
         </View>
 
-        <Seperator title="Posted by"/>
-
+        <Seperator title="Posted by" />
         <PostPerson id={id} />
+        <Seperator title="Tag" />
 
-        <Seperator title="Tag"/>
-
-        {/* 3. SYNTAX FIX: Corrected the .map function */}
         <View style={styles.tagsWrapper}>
-          {post.tags && post.tags.map((tag: string, index: number) => (
-            <View key={index} style={styles.tagBadge}>
-              <Text style={styles.tagText}>{tag.toUpperCase()}</Text>
-            </View>
-          ))}
+          {post.tags &&
+            post.tags.map((tag: string, index: number) => (
+              <View key={index} style={styles.tagBadge}>
+                <Text style={styles.tagText}>{tag.toUpperCase()}</Text>
+              </View>
+            ))}
         </View>
 
-        {/* --- MODAL --- */}
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Manage Tags</Text>
-
-              <View style={styles.modalTagWrapper}>
-                {post.tags && post.tags.map((tag: string, index: number) => (
-                  <View key={index} style={styles.modalTag}>
-                    <Text style={styles.modalTagText}>{tag}</Text>
-                  </View>
-                ))}
-                {(!post.tags || post.tags.length === 0) && (
-                  <Text style={{ color: "#999" }}>No tags yet.</Text>
-                )}
-              </View>
-
-              {/* Close Button for Modal */}
-              <ButtonOrange 
-                title="Close" 
-                variant="primary" 
-                onPress={() => setModalVisible(false)} 
-              />
-            </View>
-          </View>
-        </Modal>
-
-        <Seperator title="Description:"/>
-
+        <Seperator title="Description:" />
         <View style={styles.descriptionBox}>
           <Text style={styles.inputDescriptionBox}>
             {post.description || "No description provided."}
           </Text>
-        </View>
+        </View> 
 
-        <Seperator title="Schedule"/>
- 
-        <View style={styles.scheduleSection}>
-          <Schedule setDateAndTime={handleScheduleUpdate} setPlace={(place) => setMeetupPlace(place)} setReschedule={(reschedule) => setRescheduleMeeting(reschedule)}/>
-        </View>
-        {/* </View> */}
+        <Seperator title="Schedule" />
 
-        <View style={styles.bottomButton}>
+        {/* ======================================== Different view based on the situation ======================================== */}
 
-          <ButtonOrange
-            onPress={submitToDatabase}
-            title={rescheduleMeeting? "Reschedule": "Confirm"}
-            variant={"secondary"}
-            style={rescheduleMeeting? styles.rescheduleButton : styles.confirmButton}
-          />
-        </View>
-        
+        {/* case 1: Post owner viewing their own post with no requests yet */}
+        {!hasScheduleRequest && isPostOwner && (
+          <View style={styles.statusContainer}>
+            <Ionicons
+              name="hourglass-outline"
+              size={40}
+              color={Colors.light.purple}
+            />
+            <Text style={styles.statusTitle}>Waiting for Requests</Text>
+            <Text style={styles.statusSubtitle}>
+              No meeting requests have been received yet. If someone believes the item belongs to them, they will send you a meeting request.
+            </Text>
+          </View>
+        )}
+
+        {/* case 2: No schedule request exists, show the meeting request form to create one (for non-owners) */}
+        {!hasScheduleRequest && !isPostOwner && (
+          <>
+            <View style={styles.scheduleSection}>
+              <Schedule
+                setDateAndTime={handleScheduleUpdate}
+                setPlace={(place) => setMeetupPlace(place)}
+                setReschedule={(reschedule) => setRescheduleMeeting(reschedule)}
+              />
+            </View>
+            <View style={styles.bottomButton}>
+              <ButtonOrange
+                onPress={submitToDatabase}
+                title="Send Request"
+                variant={"secondary"}
+                textStyle = {{fontSize: 13}} // override the font size
+                style={{
+                  ...styles.confirmButton,
+                  opacity: !meetupDate || !meetupPlace ? 0.5 : 1,
+                }}
+                disabled={!meetupDate || !meetupPlace}
+              />
+            </View>
+          </>
+        )}
+
+        {/* case 3: For owner view */}
+        {hasScheduleRequest && isRequester && (
+          <>
+            {/* Show reschedule form when reschedule button is pressed */}
+            {rescheduleMeeting ? (
+              <>
+                <View style={styles.scheduleSection}>
+                  <Schedule
+                    setDateAndTime={handleScheduleUpdate}
+                    setPlace={(place) => setMeetupPlace(place)}
+                    setReschedule={(reschedule) =>
+                      setRescheduleMeeting(reschedule)
+                    }
+                    initialDate={meetupDate}
+                    initialPlace={meetupPlace}
+                  />
+                </View>
+                <View style={styles.bottomButton}>
+                  <ButtonOrange
+                    onPress={submitToDatabase}
+                    title="Update Request"
+                    variant={"secondary"}
+                    textStyle = {{fontSize: 13}} // override the font size
+                    style={{
+                      ...styles.rescheduleButton,
+                      opacity: (!meetupDate || !meetupPlace || !hasChanges()) ? 0.5 : 1,
+                    }}
+                    disabled={!meetupDate || !meetupPlace || !hasChanges()}
+                  />
+                  <ButtonOrange
+                    onPress={() => {
+                      setRescheduleMeeting(false);
+                      fetchScheduleRequest();
+                    }}
+                    title="Cancel"
+                    variant="primary"
+                    style={styles.cancelButton}
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                {/* Pending status - check who last updated */}
+                {scheduleRequest.status === "pending" && (
+                  <>
+                    {/* If the last modification was the owner (means they created or rescheduled the meeting) */}
+                    {lastModifiedBy === viewId ? (
+                      <View style={styles.statusContainer}>
+                        <Ionicons
+                          name="time-outline"
+                          size={40}
+                          color={Colors.light.purple}
+                        />
+                        <Text style={styles.statusTitle}>Waiting for Confirmation</Text>
+                        <Text style={styles.statusSubtitle}>
+                          The post owner will review your request.
+                        </Text>
+                        <View style={styles.detailsBox}>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="calendar"
+                              size={20}
+                              color={Colors.light.purple}
+                            />
+                            <Text style={styles.detailText}>
+                              {new Date(scheduleRequest.meet_date).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="time"
+                              size={20}
+                              color={Colors.light.purple}
+                            />
+                            <Text style={styles.detailText}>
+                              {scheduleRequest.meet_time}
+                            </Text>
+                          </View>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="location"
+                              size={20}
+                              color={Colors.light.purple}
+                            />
+                            <Text style={styles.detailText}>
+                              {scheduleRequest.location}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.actionRow}>
+                          <ButtonOrange
+                            onPress={() => setRescheduleMeeting(true)}
+                            title="Reschedule"
+                            variant="primary"
+                            style={styles.actionBtn}
+                          />
+                          <ButtonOrange
+                            onPress={handleCancelRequest}
+                            title="Cancel Meeting"
+                            variant="secondary"
+                            textStyle = {{fontSize: 13}}
+                            style={styles.actionBtn}
+                          />
+                        </View>
+                      </View>
+                    ) : (
+                      /* Post owner have rescheduled, and requester needs to accept or reschedule it if unavailable*/
+                      <View
+                        style={[styles.statusContainer, { backgroundColor: "#FFF3E0" }]}
+                      >
+                        <Ionicons
+                          name="notifications"
+                          size={40}
+                          color={Colors.light.orange}
+                        />
+                        <Text style={styles.statusTitle}>New Time Proposed</Text>
+                        <Text style={styles.statusSubtitle}>
+                          The post owner suggested a new meeting time.
+                        </Text>
+                        <View style={styles.detailsBox}>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="calendar"
+                              size={20}
+                              color={Colors.light.orange}
+                            />
+                            <Text style={styles.detailText}>
+                              {new Date(scheduleRequest.meet_date).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="time"
+                              size={20}
+                              color={Colors.light.orange}
+                            />
+                            <Text style={styles.detailText}>
+                              {scheduleRequest.meet_time}
+                            </Text>
+                          </View>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="location"
+                              size={20}
+                              color={Colors.light.orange}
+                            />
+                            <Text style={styles.detailText}>
+                              {scheduleRequest.location}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.actionRow}>
+                          <ButtonOrange
+                            onPress={handleAcceptRequest}
+                            title="Accept"
+                            variant="secondary"
+                            textStyle = {{fontSize: 13}} // override the font size
+                            style={styles.actionBtn}
+                          />
+                          <ButtonOrange
+                            onPress={() => setRescheduleMeeting(true)}
+                            title="Reschedule"
+                            variant="primary"
+                            style={styles.actionBtn}
+                          />
+                        </View>
+                      </View>
+                    )}
+                  </>
+                )}
+
+                {/* Accepted status - meeting confirmed */}
+                {scheduleRequest.status === "accepted" && (
+                  <View
+                    style={[styles.statusContainer, { backgroundColor: "#E8F5E9" }]}
+                  >
+                    <Ionicons name="checkmark-circle" size={50} color="#4CAF50" />
+                    <Text style={styles.statusTitle}>Meeting Confirmed! </Text>
+                    <Text style={styles.statusSubtitle}>
+                      Here are the meeting details:
+                    </Text>
+                    <View style={styles.detailsBox}>
+                      <View style={styles.detailRow}>
+                        <Ionicons name="calendar" size={20} color="#4CAF50" />
+                        <Text style={styles.detailText}>
+                          {new Date(scheduleRequest.meet_date).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Ionicons name="time" size={20} color="#4CAF50" />
+                        <Text style={styles.detailText}>
+                          {scheduleRequest.meet_time}
+                        </Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Ionicons name="location" size={20} color="#4CAF50" />
+                        <Text style={styles.detailText}>
+                          {scheduleRequest.location}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.actionRow}>
+                      <ButtonOrange
+                        onPress={() => setRescheduleMeeting(true)}
+                        title="Reschedule"
+                        variant="primary"
+                        style={styles.actionBtn}
+                      />
+                      <ButtonOrange
+                        onPress={handleCancelRequest}
+                        title="Cancel Meeting"
+                        variant="secondary"
+                        textStyle = {{fontSize: 13}} // override the font size
+                        style={styles.actionBtn}
+                      />
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* case 4: For finder view */}
+        {hasScheduleRequest && isPostOwner && (
+          <>
+            {/* Show reschedule form when user pressed on reschedule button */}
+            {rescheduleMeeting ? (
+              <>
+                <View style={styles.scheduleSection}>
+                  <Schedule
+                    setDateAndTime={handleScheduleUpdate}
+                    setPlace={(place) => setMeetupPlace(place)}
+                    setReschedule={(reschedule) =>
+                      setRescheduleMeeting(reschedule)
+                    }
+                    initialDate={meetupDate}
+                    initialPlace={meetupPlace}
+                  />
+                </View>
+                <View style={styles.bottomButton}>
+                  <ButtonOrange
+                    onPress={submitToDatabase}
+                    title="Propose New Time"
+                    variant={"secondary"}
+                    textStyle = {{fontSize: 13}} // override the font size
+                    style={{
+                      ...styles.rescheduleButton,
+                      opacity: (!meetupDate || !meetupPlace || !hasChanges()) ? 0.5 : 1,
+                    }}
+                    disabled={!meetupDate || !meetupPlace || !hasChanges()}
+                  />
+                  <ButtonOrange
+                    onPress={() => {
+                      setRescheduleMeeting(false);
+                      fetchScheduleRequest();
+                    }}
+                    title="Cancel"
+                    variant="primary"
+                    style={styles.cancelButton}
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                {/* Pending status - check who last updated */}
+                {scheduleRequest.status === "pending" && (
+                  <>
+                    {/* If the last modification was the finder (means they rescheduled the meeting) */}
+                    {lastModifiedBy === viewId ? (
+                      <View style={styles.statusContainer}>
+                        <Ionicons
+                          name="time-outline"
+                          size={40}
+                          color={Colors.light.purple}
+                        />
+                        <Text style={styles.statusTitle}>Waiting for Confirmation</Text>
+                        <Text style={styles.statusSubtitle}>
+                          You proposed a new time. Waiting for the other person to accept.
+                        </Text>
+                        <View style={styles.detailsBox}>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="calendar"
+                              size={20}
+                              color={Colors.light.purple}
+                            />
+                            <Text style={styles.detailText}>
+                              {new Date(scheduleRequest.meet_date).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="time"
+                              size={20}
+                              color={Colors.light.purple}
+                            />
+                            <Text style={styles.detailText}>
+                              {scheduleRequest.meet_time}
+                            </Text>
+                          </View>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="location"
+                              size={20}
+                              color={Colors.light.purple}
+                            />
+                            <Text style={styles.detailText}>
+                              {scheduleRequest.location}
+                            </Text>
+                          </View>
+                        </View>
+                        <ButtonOrange
+                          onPress={() => setRescheduleMeeting(true)}
+                          title="Reschedule"
+                          variant="primary"
+                          style={styles.singleBtn}
+                        />
+                      </View>
+                    ) : (
+                      /* the finder is viewing a request from owner */
+                      <View
+                        style={[styles.statusContainer, { backgroundColor: "#FFF3E0" }]}
+                      >
+                        <Ionicons
+                          name="notifications"
+                          size={40}
+                          color={Colors.light.orange}
+                        />
+                        <Text style={styles.statusTitle}>New Meeting Request</Text>
+                        <Text style={styles.statusSubtitle}>
+                          Someone wants to meet regarding this item.
+                        </Text>
+                        <View style={styles.detailsBox}>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="calendar"
+                              size={20}
+                              color={Colors.light.orange}
+                            />
+                            <Text style={styles.detailText}>
+                              {new Date(scheduleRequest.meet_date).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="time"
+                              size={20}
+                              color={Colors.light.orange}
+                            />
+                            <Text style={styles.detailText}>
+                              {scheduleRequest.meet_time}
+                            </Text>
+                          </View>
+                          <View style={styles.detailRow}>
+                            <Ionicons
+                              name="location"
+                              size={20}
+                              color={Colors.light.orange}
+                            />
+                            <Text style={styles.detailText}>
+                              {scheduleRequest.location}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.actionRow}>
+                          <ButtonOrange
+                            onPress={handleAcceptRequest}
+                            title="Accept"
+                            variant="secondary"
+                            textStyle = {{fontSize: 13}} // override the font size
+                            style={styles.actionBtn}
+                          />
+                          <ButtonOrange
+                            onPress={() => setRescheduleMeeting(true)}
+                            title="Reschedule"
+                            variant="primary"
+                            style={styles.actionBtn}
+                          />
+                        </View>
+                      </View>
+                    )}
+                  </>
+                )}
+
+                {/* Accepted - meeting confirmed */}
+                {scheduleRequest.status === "accepted" && (
+                  <View
+                    style={[styles.statusContainer, { backgroundColor: "#E8F5E9" }]}
+                  >
+                    <Ionicons name="checkmark-circle" size={50} color="#4CAF50" />
+                    <Text style={styles.statusTitle}>Meeting Confirmed!</Text>
+                    <Text style={styles.statusSubtitle}>
+                      Here are the meeting details:
+                    </Text>
+                    <View style={styles.detailsBox}>
+                      <View style={styles.detailRow}>
+                        <Ionicons name="calendar" size={20} color="#4CAF50" />
+                        <Text style={styles.detailText}>
+                          {new Date(scheduleRequest.meet_date).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Ionicons name="time" size={20} color="#4CAF50" />
+                        <Text style={styles.detailText}>
+                          {scheduleRequest.meet_time}
+                        </Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Ionicons name="location" size={20} color="#4CAF50" />
+                        <Text style={styles.detailText}>
+                          {scheduleRequest.location}
+                        </Text>
+                      </View>
+                    </View>
+                    <ButtonOrange
+                      onPress={() => setRescheduleMeeting(true)}
+                      title="Reschedule"
+                      variant="primary"
+                      style={styles.singleBtn}
+                    />
+                  </View>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* case 5: users who are not the owner or the finder, means someone else already make a request */}
+        {hasScheduleRequest && !isPostOwner && !isRequester && (
+          <View style={styles.statusContainer}>
+            <Ionicons name="lock-closed" size={40} color="#999" />
+            <Text style={styles.statusTitle}>Request Already Exists</Text>
+            <Text style={styles.statusSubtitle}>
+              A meeting request already exists for this item.
+            </Text>
+          </View>
+        )}
+
         <Footer />
       </ScrollView>
 
       <View style={styles.fixedFooter}>
         <BackButton onPress={handleBack} />
       </View>
-      
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: Colors.light.white,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.white,
-  },
+  mainContainer: { flex: 1, backgroundColor: Colors.light.white },
+  container: { flex: 1, backgroundColor: Colors.light.white },
   scrollContent: {
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "space-between",
-    paddingBottom: 40, // Increased padding so content isn't hidden behind footer
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    width: "100%",
-    alignItems: "center",
-    backgroundColor: Colors.light.white,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    paddingBottom: 40,
   },
   imageCard: {
     width: "90%",
@@ -323,33 +917,14 @@ const styles = StyleSheet.create({
     borderColor: "#eee",
     position: "relative",
   },
-  imageBackground: {
-    opacity: 0.8,
-  },
-  resultImage: {
-    width: "100%",
-    height: "100%",
-  },
-  resultLabel: {
-    color: "#00FF9D",
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  resultColor: {
-    color: "#FFF",
-    fontSize: 18,
-    opacity: 0.9,
-  },
-  tag: {
-    color: "black",
-  },
+  imageBackground: { opacity: 0.8 },
+  resultImage: { width: "100%", height: "100%" },
   tagsWrapper: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
     justifyContent: "flex-start",
-    alignItems: "center", // Added alignment
+    alignItems: "center",
     width: "90%",
     backgroundColor: Colors.light.fakeWhite,
     paddingVertical: 25,
@@ -374,17 +949,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   descriptionBox: {
-    elevation: 5, // Reduced elevation to prevent shadow artifacts
+    elevation: 5,
     shadowColor: "#110C2E",
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
     backgroundColor: "white",
-    width: "90%", // Match width with other cards
+    width: "90%",
     minHeight: 100,
-
     borderRadius: 10,
-    padding: 10, // Added padding inside the container
+    padding: 10,
   },
   inputDescriptionBox: {
     minHeight: 100,
@@ -392,100 +966,93 @@ const styles = StyleSheet.create({
     color: "#333",
     textAlignVertical: "top",
   },
-  editButton: {
-    alignSelf: "flex-end",
-    marginRight: "5%",
-    marginTop: 10,
-  },
-  confirmButton: {
-    width: "40%", // Made button slightly wider
-    minHeight: 40,
-    fontSize: 50,
-    marginRight: '2%',
-    fontWeight: 'bold',
-  },
-  rescheduleButton: {
-    width: "40%", // Made button slightly wider
-    minHeight: 40,
-    fontSize: 50,
-    marginRight: '2%',
-    fontWeight: 'bold',
-  },
+  confirmButton: { width: "40%", minHeight: 40, marginRight: "2%" },
+  rescheduleButton: { width: "40%", minHeight: 40, marginRight: "2%" },
+  cancelButton: { width: "30%", minHeight: 40 },
   bottomButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
   },
   fixedFooter: {
     position: "absolute",
     bottom: -60,
     left: -240,
     right: 0,
-    backgroundColor: Colors.light.white, // Match background so content scrolls "under" it
+    backgroundColor: Colors.light.white,
     flexDirection: "row",
-    justifyContent: "space-evenly", // Spacing between buttons
+    justifyContent: "space-evenly",
     alignItems: "center",
     paddingVertical: 20,
     paddingHorizontal: 10,
-
-    // Add a shadow so it separates from the scrolling content
     borderTopWidth: 1,
     borderTopColor: "#f0f0f0",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 }, // Shadow points UP
+    shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 10,
   },
-  
-  // --- MODAL STYLES ---
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContainer: {
-    width: "85%",
-    backgroundColor: "white",
-    borderRadius: 20,
+  scheduleSection: { width: "95%" },
+  statusContainer: {
+    width: "90%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
     padding: 20,
-    elevation: 5,
+    alignItems: "center",
+    marginVertical: 10,
+    margin: 10,
+    alignSelf: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    alignItems: "center",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 15,
+  statusTitle: {
+    fontSize: 18,
+    fontWeight: "700",
     color: "#333",
+    marginTop: 15,
+    marginBottom: 8,
   },
-  modalTagWrapper: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 20,
-    justifyContent: 'center',
-  },
-  modalTag: {
-    backgroundColor: Colors.light.yellow,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  modalTagText: {
-    fontWeight: "600",
-    color: "#333",
+  statusSubtitle: {
     fontSize: 14,
+    color: "#888",
+    textAlign: "center",
+    marginBottom: 20,
   },
-  scheduleSection: {
-    width: '95%',
-  }
+  detailsBox: {
+    width: "100%",
+    backgroundColor: "#fafafa",
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  detailText: {
+    fontSize: 18,
+    color: "#333",
+    fontWeight: "600",
+    flex: 1,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+    marginTop: 10,
+  },
+  actionBtn: { flex: 1, minHeight: 40},
+  singleBtn: { width: "80%", minHeight: 40, marginTop: 10, marginRight: 15, alignSelf: "center" },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Modal, TextInput, ScrollView, KeyboardAvoidingView } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons'; 
@@ -8,18 +8,20 @@ type ScheduleProps = {
   setDateAndTime: (date : Date) => void;
   setPlace: (place: string) => void;
   setReschedule: (reschedule: boolean) => void;
+  initialDate?: Date;
+  initialPlace?: string;
 }
 
-export default function Schedule({setDateAndTime, setPlace, setReschedule}: ScheduleProps) {
-  const [date, setDate] = useState(new Date());
+export default function Schedule({setDateAndTime, setPlace, setReschedule, initialDate, initialPlace}: ScheduleProps) {
+  const [date, setDate] = useState(initialDate || new Date(Date.now() + 10 * 60 * 1000));
   
   // Controls for Date/Time Modal
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
-  
+
   // Controls for Location Modal
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [selectedPlace, setSelectedPlace] = useState<string>("");
+  const [selectedPlace, setSelectedPlace] = useState<string>(initialPlace || "");
   const [customPlace, setCustomPlace] = useState(""); // For typing in
 
   const predefinedPlaces = [
@@ -30,26 +32,59 @@ export default function Schedule({setDateAndTime, setPlace, setReschedule}: Sche
     "Admin Building"
   ];
 
+  // Update parent component when initial values are provided
+  useEffect(() => {
+    if (initialDate) {
+      setDateAndTime(initialDate);
+    }
+    if (initialPlace) {
+      setPlace(initialPlace);
+    }
+  }, [initialDate, initialPlace]);
+
   // --- Date & Time Handlers ---
   const handleDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') setShowPicker(false);
+
+    const now = new Date(); // get current date and time
+    const minDateTime = new Date(now.getTime() + 10 * 60 * 1000); // set the fastest meeting time can only be 10 minutes later
     
     if (selectedDate) {
-      // 1. Create clean strings that only care about Minute precision
-      // slice(0, 16) keeps "YYYY-MM-DDTHH:mm" and cuts off ":ss.ms"
-      const currentString = date.toISOString().slice(0, 16);
-      const newString = selectedDate.toISOString().slice(0, 16);
+      if (selectedDate >= minDateTime){
+        // if user choose today to have the meeting, prevent let user choose the past time
+        if (selectedDate.getFullYear() === minDateTime.getFullYear() && selectedDate.getMonth() === minDateTime.getMonth() && selectedDate.getDate() === minDateTime.getDate()) {
+          const selectedMinutes = selectedDate.getHours() * 60 + selectedDate.getMinutes();
+          const minMinutes = minDateTime.getHours() * 60 + minDateTime.getMinutes();
 
-      // 2. Compare the CLEAN strings
-      if (currentString !== newString) {
-        setDate(selectedDate);
-        setDateAndTime(selectedDate); 
-        setReschedule(true);
+          if (selectedMinutes < minMinutes) {
+            return;
+          }
+        }
+
+        // 1. Create clean strings that only care about Minute precision
+        // slice(0, 16) keeps "YYYY-MM-DDTHH:mm" and cuts off ":ss.ms"
+        const currentString = date.toISOString().slice(0, 16);
+        const newString = selectedDate.toISOString().slice(0, 16);
+
+        // 2. Compare the CLEAN strings
+        if (currentString !== newString) {
+          setDate(selectedDate);
+          setDateAndTime(selectedDate); 
+          setReschedule(true);
+        }
       }
     }
   };
 
   const openDatePicker = (mode: 'date' | 'time') => {
+    const now = new Date();
+    const minDateTime = new Date(now.getTime() + 10 * 60 * 1000);
+
+    // If previously selected date is already lesser than 10 minues, when user click on the openDatePicker auto set to the next valid time
+    if (date < minDateTime) {
+      setDate(minDateTime);
+    }
+
     setPickerMode(mode);
     setShowPicker(true);
   };
@@ -134,7 +169,7 @@ export default function Schedule({setDateAndTime, setPlace, setReschedule}: Sche
       {showPicker && (
         Platform.OS === 'android' ? (
           <DateTimePicker 
-             value={date} mode={pickerMode} is24Hour={false} display="default" 
+             value={date} mode={pickerMode} is24Hour={false} display="default" minimumDate={new Date()}
              onChange={handleDateChange} 
           />
         ) : (
