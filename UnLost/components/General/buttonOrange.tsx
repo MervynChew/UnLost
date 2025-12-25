@@ -26,7 +26,8 @@ export function ButtonOrange ({
   onPress, 
   loading = false, 
   disabled = false, 
-  style, 
+  style,
+  textStyle,  // ← Add this parameter
   variant = 'primary' 
 }: ThemedButtonProps) {
 
@@ -49,7 +50,8 @@ export function ButtonOrange ({
       ) : (
         <Text style={[
           styles.textBase, 
-          variant === 'primary' ? styles.textPrimary : styles.textSecondary 
+          variant === 'primary' ? styles.textPrimary : styles.textSecondary,
+          textStyle  // ← Add this line to apply custom text styles
         ]}>
           {title}
         </Text>
