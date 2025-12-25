@@ -9,7 +9,6 @@ import Post from "@/components/Main page/Post"
 import { supabase } from "../../lib/supabase"; // Adjust
 
 export default function HomeScreen() {
-
   const [username, setUsername] = useState('User');
   const [posts, setPosts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState(''); // <--- State for search text

@@ -14,6 +14,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import Header from "../General/header";
 
+
 import { Colors } from "../../constants/theme";
 import { ButtonOrange } from "../General/buttonOrange";
 import BackButton from "../General/backButton";
@@ -21,55 +22,69 @@ import Footer from "../General/footer";
 import Seperator from "../General/sectionSeperator";
 import PostPerson from "./PostPerson";
 
+
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import Schedule from "./Schedule";
 import ScheduleDisplay from "./ScheduleDisplay";
+
 
 type Props = {
   propId?: number;
   onClose?: () => void;
 };
 
+
 export default function PostDetails({ propId, onClose }: Props) {
   const router = useRouter();
+
 
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+
   const [viewId, setViewerId] = useState("");
   const [ownerId, setOwnerId] = useState("");
+
 
   const [meetupDate, setMeetupDate] = useState(new Date());
   const [meetupPlace, setMeetupPlace] = useState("");
 
+
   const id = propId;
 
+
   const [rescheduleMeeting, setRescheduleMeeting] = useState(false);
+
 
   // Schedule Request States
   const [scheduleRequest, setScheduleRequest] = useState<any>(null);
   const [hasScheduleRequest, setHasScheduleRequest] = useState(false);
   const [isPostOwner, setIsPostOwner] = useState(false);
   const [isRequester, setIsRequester] = useState(false);
-  
+ 
   // Track who last modified the request
   const [lastModifiedBy, setLastModifiedBy] = useState<string>("");
+
 
   // Store original values to see whether user has change any details or not, to allow user to send out the reschedule if there is changes made
   const [originalMeetupDate, setOriginalMeetupDate] = useState(new Date());
   const [originalMeetupPlace, setOriginalMeetupPlace] = useState("");
 
+
   const fetchPostDetails = async () => {
     if (!id) return;
 
+
     setLoading(true);
+
 
     const { data, error } = await supabase
       .from("posts")
       .select("*, profiles(full_name, profile_picture)")
       .eq("post_id", id)
       .single();
+
 
     if (error) {
       console.log(error);
@@ -79,28 +94,35 @@ export default function PostDetails({ propId, onClose }: Props) {
       setOwnerId(data.user_id);
     }
 
+
     setLoading(false);
   };
+
 
   const getViewer = async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
+
     if (!session) return;
+
 
     setViewerId(session.user.id);
   };
 
+
   // Fetch Existing Schedule Request
   const fetchScheduleRequest = async () => {
     if (!id) return;
+
 
     const { data, error } = await supabase
       .from("schedule_requests")
       .select("*")
       .eq("post_id", Number(id))
       .single();
+
 
     if (error) {
       setHasScheduleRequest(false);
@@ -110,6 +132,7 @@ export default function PostDetails({ propId, onClose }: Props) {
       setScheduleRequest(data);
       setHasScheduleRequest(true);
       setLastModifiedBy(data.last_modified_by || data.owner_id);
+
 
       if (data.meet_date && data.meet_time) {
         const dateTimeString = `${data.meet_date}T${data.meet_time}`;
@@ -124,22 +147,26 @@ export default function PostDetails({ propId, onClose }: Props) {
     }
   };
 
+
   // Determine User Role
   useEffect(() => {
     if (viewId && ownerId) {
       setIsPostOwner(viewId === ownerId);
     }
 
+
     if (viewId && scheduleRequest) {
       setIsRequester(viewId === scheduleRequest.owner_id);
     }
   }, [viewId, ownerId, scheduleRequest]);
+
 
   useEffect(() => {
     fetchPostDetails();
     getViewer();
     fetchScheduleRequest();
   }, [id]);
+
 
   const handleBack = () => {
     if (onClose) {
@@ -148,6 +175,7 @@ export default function PostDetails({ propId, onClose }: Props) {
       router.back();
     }
   };
+
 
   if (loading || !post) {
     return (
@@ -162,24 +190,29 @@ export default function PostDetails({ propId, onClose }: Props) {
     );
   }
 
+
   const handleScheduleUpdate = (newDate: Date) => {
     console.log("Full Date & Time received:", newDate.toLocaleString());
     setMeetupDate(newDate);
   };
 
+
   // Check if anything changed when user in the reschedule page
   const hasChanges = () => {
     if (!hasScheduleRequest) return true; // For new requests always allow
 
+
     // convert to same format for data comparison
     const currentDateTime = meetupDate.getTime();
     const originalDateTime = originalMeetupDate.getTime();
-    
+   
     const dateChanged = currentDateTime !== originalDateTime;
     const placeChanged = meetupPlace.trim() !== originalMeetupPlace.trim();
 
+
     return dateChanged || placeChanged;
   };
+
 
   // Submit or Update Request
   const submitToDatabase = async () => {
@@ -191,7 +224,8 @@ export default function PostDetails({ propId, onClose }: Props) {
       return;
     }
 
-    // Check if anything changed during reschedule 
+
+    // Check if anything changed during reschedule
     if (hasScheduleRequest && !hasChanges()) {
       Alert.alert(
         "No Changes Made",
@@ -200,14 +234,17 @@ export default function PostDetails({ propId, onClose }: Props) {
       return;
     }
 
+
     const year = meetupDate.getFullYear();
     const month = String(meetupDate.getMonth() + 1).padStart(2, "0");
     const day = String(meetupDate.getDate()).padStart(2, "0");
     const localDateString = `${year}-${month}-${day}`;
 
+
     const hours = String(meetupDate.getHours()).padStart(2, "0");
     const minutes = String(meetupDate.getMinutes()).padStart(2, "0");
     const localTimeString = `${hours}:${minutes}:00`;
+
 
     // if updating an existing request (means it is reschedule)
     if (hasScheduleRequest && scheduleRequest) {
@@ -219,21 +256,25 @@ export default function PostDetails({ propId, onClose }: Props) {
         last_modified_by: viewId,
       };
 
+
       const { data, error } = await supabase
         .from("schedule_requests")
         .update(updateData)
         .eq("request_id", scheduleRequest.request_id)
         .select();
 
+
       if (error) {
         Alert.alert("Error", `Failed to update: ${error.message}`);
         return;
       }
 
+
       if (!data || data.length === 0) {
         Alert.alert("Error", "Failed to update the request. Please try again.");
         return;
       }
+
 
       Alert.alert("Success", "Meeting request updated and waiting for confirmation!");
       setRescheduleMeeting(false);
@@ -251,20 +292,24 @@ export default function PostDetails({ propId, onClose }: Props) {
         last_modified_by: viewId,
       };
 
+
       const { data, error } = await supabase
         .from("schedule_requests")
         .insert(insertData)
         .select();
+
 
       if (error) {
         Alert.alert("Error", `Failed to create request: ${error.message}`);
         return;
       }
 
+
       if (!data || data.length === 0) {
         Alert.alert("Error", "Failed to create the request. Please try again.");
         return;
       }
+
 
       Alert.alert("Success", "Request Sent!");
       setRescheduleMeeting(false); // reset reschedule state after creating new request
@@ -272,9 +317,11 @@ export default function PostDetails({ propId, onClose }: Props) {
     }
   };
 
+
   // Accept Schedule Request
   const handleAcceptRequest = async () => {
     if (!scheduleRequest) return;
+
 
     const { data, error } = await supabase
       .from("schedule_requests")
@@ -282,23 +329,28 @@ export default function PostDetails({ propId, onClose }: Props) {
       .eq("request_id", scheduleRequest.request_id)
       .select();
 
+
     if (error) {
       Alert.alert("Error", `Failed to accept: ${error.message}`);
       return;
     }
+
 
     if (!data || data.length === 0) {
       Alert.alert("Error", "Failed to accept the request. Please try again.");
       return;
     }
 
+
     Alert.alert("Success", "Meeting confirmed!");
     await fetchScheduleRequest();
   };
 
+
   // Cancel Schedule Request (for owner only, and delete the meeting request from database)
   const handleCancelRequest = async () => {
     if (!scheduleRequest) return;
+
 
     Alert.alert(
       "Cancel Meeting",
@@ -315,10 +367,12 @@ export default function PostDetails({ propId, onClose }: Props) {
               .eq("request_id", scheduleRequest.request_id)
               .select();
 
+
             if (error) {
               Alert.alert("Error", `Failed to delete: ${error.message}`);
               return;
             }
+
 
             Alert.alert("Cancelled", "The meeting request has been deleted.");
             setScheduleRequest(null);
@@ -332,6 +386,7 @@ export default function PostDetails({ propId, onClose }: Props) {
       ]
     );
   };
+
 
   return (
     <View style={styles.mainContainer}>
@@ -348,6 +403,7 @@ export default function PostDetails({ propId, onClose }: Props) {
         backgroundColor="transparent"
       />
 
+
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -356,6 +412,7 @@ export default function PostDetails({ propId, onClose }: Props) {
           title="Post Details"
           subtitle="Help the item find back their own parent"
         />
+
 
         <View style={styles.imageCard}>
           <Image
@@ -377,9 +434,11 @@ export default function PostDetails({ propId, onClose }: Props) {
           />
         </View>
 
+
         <Seperator title="Posted by" />
         <PostPerson id={id} />
         <Seperator title="Tag" />
+
 
         <View style={styles.tagsWrapper}>
           {post.tags &&
@@ -390,16 +449,20 @@ export default function PostDetails({ propId, onClose }: Props) {
             ))}
         </View>
 
+
         <Seperator title="Description:" />
         <View style={styles.descriptionBox}>
           <Text style={styles.inputDescriptionBox}>
             {post.description || "No description provided."}
           </Text>
-        </View> 
+        </View>
+
 
         <Seperator title="Schedule" />
 
+
         {/* ======================================== Different view based on the situation ======================================== */}
+
 
         {/* case 1: Post owner viewing their own post with no requests yet */}
         {!hasScheduleRequest && isPostOwner && (
@@ -415,6 +478,7 @@ export default function PostDetails({ propId, onClose }: Props) {
             </Text>
           </View>
         )}
+
 
         {/* case 2: No schedule request exists, show the meeting request form to create one (for non-owners) */}
         {!hasScheduleRequest && !isPostOwner && (
@@ -441,6 +505,7 @@ export default function PostDetails({ propId, onClose }: Props) {
             </View>
           </>
         )}
+
 
         {/* case 3: For owner view */}
         {hasScheduleRequest && isRequester && (
@@ -613,6 +678,7 @@ export default function PostDetails({ propId, onClose }: Props) {
                   </>
                 )}
 
+
                 {/* Accepted status - meeting confirmed */}
                 {scheduleRequest.status === "accepted" && (
                   <View
@@ -664,6 +730,7 @@ export default function PostDetails({ propId, onClose }: Props) {
             )}
           </>
         )}
+
 
         {/* case 4: For finder view */}
         {hasScheduleRequest && isPostOwner && (
@@ -827,6 +894,7 @@ export default function PostDetails({ propId, onClose }: Props) {
                   </>
                 )}
 
+
                 {/* Accepted - meeting confirmed */}
                 {scheduleRequest.status === "accepted" && (
                   <View
@@ -870,6 +938,7 @@ export default function PostDetails({ propId, onClose }: Props) {
           </>
         )}
 
+
         {/* case 5: users who are not the owner or the finder, means someone else already make a request */}
         {hasScheduleRequest && !isPostOwner && !isRequester && (
           <View style={styles.statusContainer}>
@@ -881,8 +950,10 @@ export default function PostDetails({ propId, onClose }: Props) {
           </View>
         )}
 
+
         <Footer />
       </ScrollView>
+
 
       <View style={styles.fixedFooter}>
         <BackButton onPress={handleBack} />
@@ -890,6 +961,7 @@ export default function PostDetails({ propId, onClose }: Props) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: Colors.light.white },
@@ -1056,3 +1128,4 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, minHeight: 40},
   singleBtn: { width: "80%", minHeight: 40, marginTop: 10, marginRight: 15, alignSelf: "center" },
 });
+
