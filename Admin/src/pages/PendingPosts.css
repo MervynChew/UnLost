@@ -1,0 +1,451 @@
+.pending-container {
+    padding: 10px;
+}
+.table-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+    margin-top: 20px;
+}
+.pending-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+.pending-table th {
+    background-color: #f8f9fa;
+    padding: 15px;
+    font-weight: 600;
+    color: #555;
+    border-bottom: 2px solid #eee;
+}
+.pending-table td {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    color: #333;
+}
+
+/* Empty State Styling */
+.empty-state-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    background: white;
+    border-radius: 16px;
+    border: 2px dashed #e0e0e0;
+    margin-top: 20px;
+    text-align: center;
+}
+.check-icon {
+    width: 60px;
+    height: 60px;
+    background: #43aa8b15;
+    color: #43aa8b;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 15px;
+}
+.empty-state-card h3 { color: #333; margin: 0; }
+.empty-state-card p { color: #888; margin-top: 8px; }
+
+/* Tags Styling */
+.tag-pill-container {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+.table-tag {
+    background: #f0ebf7; /* Very light purple */
+    color: #8b6ba8;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.tag-more {
+    font-size: 0.7rem;
+    color: #999;
+    align-self: center;
+}
+
+/* Date and Time Styling */
+.datetime-cell {
+    display: flex;
+    flex-direction: column;
+}
+.datetime-cell small {
+    color: #888;
+}
+
+/* Action Buttons Styling */
+.action-cells {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+.view-link {
+    background: none;
+    border: none;
+    color: #8b6ba8; /* Purple from your theme */
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 600;
+}
+.btn-approve, .btn-reject, .btn-close {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-approve { background-color: #43aa8b; color: white; }
+.btn-reject { background-color: #e89b7f; color: white; }
+.btn-close { background-color: #ccc; color: black; }
+
+/* Modal Styling to match your AllPosts look */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-header {
+    margin-bottom: 30px;
+}
+.modal-header-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.post-id-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #b0b0b0;
+}
+.post-id-number {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #8b6ba8; /* Your theme purple */
+    background: #f4f0f9;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.modal-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0 0 20px 0;
+    color: #1a1a1a;
+}
+
+/* Author Meta - Spaced Out Alignment */
+.author-meta {
+    display: flex;
+    gap: 40px; /* Large horizontal gap between User and Date */
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.meta-item label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #ccc;
+    letter-spacing: 0.5px;
+}
+.meta-item strong, .meta-item span {
+    font-size: 0.95rem;
+    color: #444;
+}
+
+/* Info Blocks */
+.info-block {
+    margin-top: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.block-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modal-content {
+    background: white;
+    width: 90%;
+    max-width: 700px;
+    border-radius: 15px;
+    padding: 25px;
+    position: relative;
+}
+.modal-content-wide {
+    display: flex;
+    flex-direction: column;
+    background: white;
+    width: 90%;
+    max-width: 900px;
+    max-height: 90vh;    /* Makes it so that modal will never exceed 90% of viewport height */
+    overflow-y: hidden;    /* Allows internal scrolling only */
+    border-radius: 20px;
+    padding: 30px;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    animation: fadeIn 0.2s ease-out;
+}
+.modal-grid-container {
+    display: grid;
+    overflow-y: auto;    /* If the grid is too big, scroll the inside only */
+    grid-template-columns: 1fr 1.2fr; /* Point 1: Split Layout */
+    padding-right: 5px;   /* For scrollbar space and avoid overlapping */
+    gap: 30px;
+}
+.modal-right-col {
+    display: flex;
+    flex-direction: column;
+    max-height: 550px;
+}
+
+.meta-primary { margin: 0; font-size: 0.95rem; color: #444; }
+.meta-secondary { margin: 2px 0 0 0; font-size: 0.85rem; color: #999; }
+
+/* The "Block" Alignment System */
+.info-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+.block-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #b0b0b0; /* Subdued color for labels makes data pop */
+}
+
+/* Left Column Styling */
+.modal-hero-img {
+    width: 100%;
+    height: 320px;
+    object-fit: cover;
+    border-radius: 12px;
+}
+.main-image-wrapper {
+    position: relative;
+}
+.image-badge {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(232, 155, 127, 0.9); /* Your theme orange */
+    color: white;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.location-context-card {
+    margin-top: 20px;
+    background: #fdfaf7;
+    border: 1px solid #eee;
+    padding: 15px;
+    border-radius: 12px;
+}
+.mock-map-view {
+    height: 80px;
+    background: #eee;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 0.75rem;
+    background-image: radial-gradient(#ccc 1px, transparent 1px);
+    background-size: 15px 15px;
+}
+
+/* Right Column Styling */
+.tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.description-section h4{
+    margin-bottom: 8px;
+    color: #999;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+.description-scroll-box {
+    background: #fff;
+    border: 1px solid #f5f5f5;
+    padding: 20px;
+    border-radius: 12px;
+    color: #444;
+    line-height: 1.7;
+    font-size: 0.95rem;
+    margin-top: 10px;
+
+    height: 140px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #e5d5f2 transparent;
+}
+.description-scroll-box::-webkit-scrollbar-track {
+    background: transparent;
+}
+.description-scroll-box::-webkit-scrollbar-thumb {
+    background-color: #e5d5f2;
+    border-radius: 10px;
+}
+
+/* Tag Styling */
+.verify-tag {
+    background: #f3effb;
+    color: #8b6ba8;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid #eaddf5;
+}
+
+/* Action Buttons */
+.modal-footer-actions {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 15px;
+    margin-top: auto;
+    padding-top: 20px;
+}
+.approve-action-btn {
+    flex: 2;
+    background: #43aa8b;
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.reject-action-btn {
+    flex: 1;
+    background: #fff;
+    color: #e89b7f;
+    border: 2px solid #e89b7f;
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.close-x-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #ccc;
+    cursor: pointer;
+}
+
+/* Reject Modal Specific Styling */
+.rejection-card {
+    background: white;
+    width: 400px;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.rejection-card .block-label {
+    margin-top: 15px;
+    display: block;
+    margin-bottom: 5px;
+}
+.rejection-subtitle {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 20px;
+}
+.rejection-select, .rejection-textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1.5px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-family: inherit;
+}
+.rejection-textarea {
+    width: 93.5%;
+    height: 100px;
+    resize: none;
+}
+.rejection-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.btn-send-reject {
+    background: #e89b7f; /* Your orange */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.btn-cancel {
+    background: #f5f5f5;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Undo Toast Styling */
+.undo-toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 2000;
+    animation: slideUp 0.3s ease-out;
+}
+.undo-toast button {
+    background: none;
+    border: none;
+    color: #ffbe0b; /* Bright yellow/orange for visibility */
+    font-weight: bold;
+    cursor: pointer;
+}
+@keyframes slideUp {
+    from { bottom: -50px; opacity: 0; }
+    to { bottom: 30px; opacity: 1; }
+}

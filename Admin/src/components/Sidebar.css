@@ -1,0 +1,52 @@
+.sidebar-wrap {
+  padding: 16px 12px;
+  min-height: 100vh; 
+  height: 100%;
+  position: sticky;
+  flex-direction: column;
+  /* background: linear-gradient(180deg, #e89b7f 0%, #8b6ba8 100%); */
+  background: #ffffff;
+  color: rgb(0, 0, 0);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 15px;
+  margin: 20px 6px;
+}
+.brand-text {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  
+}
+.logoIcon {
+    border-radius: 10px;
+    width: 60px;
+    height: 60px;
+}
+.nav {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+.nav-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: rgba(0, 0, 0, 0.9);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #000000;
+}
+.nav-item.active {
+  background: rgba(228, 105, 255, 0.25);
+  color: #000000;
+  padding-left: 9px;
+}
