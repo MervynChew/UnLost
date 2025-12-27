@@ -84,6 +84,8 @@ export default function PostDetails({ propId, onClose }: Props) {
   const [postStatus, setPostStatus] = useState<string>("active");
   const [isItemCompleted, setIsItemCompleted] = useState(false);
 
+  const [originalRequesterId, setOriginalRequesterId] = useState<string>("");
+
   const fetchPostDetails = async () => {
     if (!id) return;
 
@@ -129,22 +131,27 @@ export default function PostDetails({ propId, onClose }: Props) {
   const fetchScheduleRequest = async () => {
     if (!id) return;
 
-
+    // Get the LATEST non-deleted request for this post
     const { data, error } = await supabase
       .from("schedule_requests")
       .select("*")
       .eq("post_id", Number(id))
-      .single();
-
+      .not("status", "in", "(deleted,inactive)") // ⭐ Exclude both deleted and inactive
+      .order("created_at", { ascending: false }) // Get newest first
+      .limit(1) // Only get the latest one
+      .maybeSingle(); // Use maybeSingle instead of single to handle no results gracefully
 
     if (error) {
+      console.error("Error fetching schedule request:", error);
       setHasScheduleRequest(false);
       setScheduleRequest(null);
       setLastModifiedBy("");
     } else if (data) {
+      console.log("✅ Found active schedule request:", data);
       setScheduleRequest(data);
       setHasScheduleRequest(true);
       setLastModifiedBy(data.last_modified_by || data.owner_id);
+      setOriginalRequesterId(data.owner_id); // ⭐ ADD THIS LINE
 
       // Check if item is completed
       if (data.status === "completed") {
@@ -155,12 +162,18 @@ export default function PostDetails({ propId, onClose }: Props) {
         const dateTimeString = `${data.meet_date}T${data.meet_time}`;
         const dateObj = new Date(dateTimeString);
         setMeetupDate(dateObj);
-        setOriginalMeetupDate(dateObj); // store original details
+        setOriginalMeetupDate(dateObj);
       }
       if (data.location) {
         setMeetupPlace(data.location);
-        setOriginalMeetupPlace(data.location); // store original details
+        setOriginalMeetupPlace(data.location);
       }
+    } else {
+      console.log("ℹ️ No active schedule request found");
+      // No active request exists (all are deleted or none exist)
+      setHasScheduleRequest(false);
+      setScheduleRequest(null);
+      setLastModifiedBy("");
     }
   };
 
@@ -275,7 +288,7 @@ export default function PostDetails({ propId, onClose }: Props) {
     fetchScheduleRequest();
   }, [id]);
 
-  // 3. ADD useEffect to check meeting failure (add after other useEffects, around line 150):
+  // 3. ADD useEffect to check meeting failure:
   useEffect(() => {
     if (hasScheduleRequest && scheduleRequest?.status === "accepted") {
       const isFailed = checkMeetingFailure();
@@ -298,13 +311,12 @@ export default function PostDetails({ propId, onClose }: Props) {
     }
   }, [hasScheduleRequest, scheduleRequest]);
 
-  // COMPLETE REAL-TIME SUBSCRIPTION FIX
+  // COMPLETE REAL-TIME SUBSCRIPTION 
   useEffect(() => {
     if (!id) return;
 
     console.log("🔧 Setting up UNIFIED real-time subscription for post_id:", id);
 
-    // Use a consistent channel name (without Date.now()) so all users join the same channel
     const channelName = `schedule-requests-post-${id}`;
     
     const channel = supabase
@@ -321,44 +333,16 @@ export default function PostDetails({ propId, onClose }: Props) {
           console.log('🔥 Real-time event received:', payload.eventType);
           console.log('📦 Payload:', JSON.stringify(payload, null, 2));
           
-          // HANDLE DELETE - Meeting Cancelled
-          if (payload.eventType === 'DELETE') {
-            console.log('❌ DELETE event - Meeting cancelled/deleted');
-            console.log('🗑️ Deleted record old data:', payload.old);
-            
-            // Verify this delete is for our current schedule request
-            if (scheduleRequest && payload.old && payload.old.request_id === scheduleRequest.request_id) {
-              console.log('✅ Confirmed: This is our schedule request being deleted');
-              
-              // Complete state reset
-              console.log('🧹 Resetting all state...');
-              setScheduleRequest(null);
-              setHasScheduleRequest(false);
-              setMeetupPlace("");
-              setOriginalMeetupPlace("");
-              setRescheduleMeeting(false);
-              setLastModifiedBy("");
-              setMeetingFailed(false);
-              
-              // Reset to next valid time
-              const nextValid = new Date();
-              nextValid.setTime(nextValid.getTime() + 10 * 60 * 1000);
-              nextValid.setSeconds(0);
-              nextValid.setMilliseconds(0);
-              setMeetupDate(nextValid);
-              setOriginalMeetupDate(nextValid);
-              
-              console.log('✅ DELETE: State fully reset - UI should update now');
-            } else {
-              console.log('⚠️ DELETE event for different request_id, ignoring');
-            }
-            return;
-          }
-          
           // HANDLE INSERT - New meeting created
           if (payload.eventType === 'INSERT' && payload.new) {
             console.log('✨ INSERT event - New meeting request created');
             const newData = payload.new;
+            
+            // Ignore deleted/inactive requests
+            if (newData.status === "deleted" || newData.status === "inactive") {
+              console.log('⏭️ Ignoring INSERT of deleted/inactive request');
+              return;
+            }
             
             setScheduleRequest({ ...newData });
             setHasScheduleRequest(true);
@@ -385,7 +369,25 @@ export default function PostDetails({ propId, onClose }: Props) {
             console.log('🔄 UPDATE event - Meeting updated');
             const newData = payload.new;
             
-            // Force update by creating new object reference
+            // If status changed to "deleted" / inactive", treat like cancellation
+            if (newData.status === "deleted" || newData.status === "inactive") {
+              console.log('🗑️ Meeting cancelled or marked inactive (status:', newData.status, ')');
+              
+              // Only reset if this is OUR current schedule request
+              if (scheduleRequest && newData.request_id === scheduleRequest.request_id) {
+                console.log('🧹 Resetting state for cancelled meeting');
+                
+                // Just log it and let the INSERT event handle the new request
+                console.log('⏳ Waiting for new request to arrive...');
+                
+                // Set a flag that we're transitioning
+                setScheduleRequest(null);
+                setHasScheduleRequest(false);
+              }
+              return;
+            }
+            
+            // Normal update - force update by creating new object reference
             setScheduleRequest({ ...newData });
             setHasScheduleRequest(true);
             setLastModifiedBy(newData.last_modified_by || newData.owner_id);
@@ -438,22 +440,43 @@ export default function PostDetails({ propId, onClose }: Props) {
       console.log('🧹 Cleaning up subscription:', channelName);
       supabase.removeChannel(channel);
     };
-  }, [id, scheduleRequest]); // ADD scheduleRequest to dependencies so we can check request_id
+  }, [id, scheduleRequest]);
+
+  // Periodic refresh when no active request exists
+  useEffect(() => {
+    if (!hasScheduleRequest && !loading) {
+      console.log('📡 No active request - setting up polling');
+      
+      const pollInterval = setInterval(() => {
+        console.log('🔄 Polling for new requests...');
+        fetchScheduleRequest();
+      }, 3000); // Check every 3 seconds
+      
+      return () => {
+        console.log('🛑 Stopping polling');
+        clearInterval(pollInterval);
+      };
+    }
+  }, [hasScheduleRequest, loading, id]);
 
   // ALSO ADD: Force refresh when coming back to screen (for React Native)
   useFocusEffect(
     React.useCallback(() => {
       console.log('🔄 Screen focused - refreshing data');
       
-      // Add a small delay to ensure any pending database operations complete
+      // Immediate refresh
+      fetchScheduleRequest();
+      
+      // ⭐ Add a second delayed refresh to catch any race conditions
       const timeoutId = setTimeout(() => {
+        console.log('🔄 Delayed refresh to catch new requests');
         fetchScheduleRequest();
-      }, 300); // 300ms delay
+      }, 500); // 500ms delay
       
       return () => {
         clearTimeout(timeoutId);
       };
-    }, [])
+    }, [id]) // ⭐ Add 'id' as dependency
   );
 
   const handleBack = () => {
@@ -533,7 +556,7 @@ export default function PostDetails({ propId, onClose }: Props) {
     return meetupDate >= minValidTime;
   };
 
-  // Submit or Update Request
+  // submitToDatabase function
   const submitToDatabase = async () => {
     if (!meetupDate || !meetupPlace) {
       Alert.alert(
@@ -561,59 +584,124 @@ export default function PostDetails({ propId, onClose }: Props) {
       return;
     }
 
-
     const year = meetupDate.getFullYear();
     const month = String(meetupDate.getMonth() + 1).padStart(2, "0");
     const day = String(meetupDate.getDate()).padStart(2, "0");
     const localDateString = `${year}-${month}-${day}`;
 
-
     const hours = String(meetupDate.getHours()).padStart(2, "0");
     const minutes = String(meetupDate.getMinutes()).padStart(2, "0");
     const localTimeString = `${hours}:${minutes}:00`;
 
-
-    // if updating an existing request (means it is reschedule)
+    // ============================================
+    // UPDATED LOGIC: Check if we should UPDATE or CREATE NEW
+    // ============================================
+    
     if (hasScheduleRequest && scheduleRequest) {
-      const updateData = {
-        location: meetupPlace,
-        meet_date: localDateString,
-        meet_time: localTimeString,
-        status: "pending",
-        last_modified_by: viewId,
-        // Reset attendance and descriptions when rescheduling
-        finder_attendance: false,
-        owner_attendance: false,
-        finder_description: null,
-        owner_description: null,
-      };
+      const currentStatus = scheduleRequest.status;
+      
+      // If status is "failed" or "deleted", CREATE NEW REQUEST
+      if (currentStatus === "failed" || currentStatus === "deleted") {
+        console.log(`🆕 Creating NEW request (previous status: ${currentStatus})`);
 
+        // Mark the old request as "inactive" so it does not show up again
+        if (currentStatus === "failed") {
+          console.log(`🔄 Marking failed meeting as inactive: ${scheduleRequest.request_id}`);
+          await supabase
+            .from("schedule_requests")
+            .update({ status: "inactive" })
+            .eq("request_id", scheduleRequest.request_id);
+        }
 
-      const { data, error } = await supabase
-        .from("schedule_requests")
-        .update(updateData)
-        .eq("request_id", scheduleRequest.request_id)
-        .select();
+        // Use original requester ID, not current viewer ID
+        const requestOwnerId = scheduleRequest.owner_id;
+        
+        const insertData = {
+          post_id: Number(id),
+          owner_id: requestOwnerId,
+          location: meetupPlace,
+          meet_date: localDateString,
+          meet_time: localTimeString,
+          status: "pending",
+          last_modified_by: viewId,
+          // New request starts fresh - no attendance/descriptions
+          finder_attendance: false,
+          owner_attendance: false,
+          finder_description: null,
+          owner_description: null,
+        };
 
+        console.log('📝 Creating new request with owner_id:', requestOwnerId, 'modified by:', viewId);
 
-      if (error) {
-        Alert.alert("Error", `Failed to update: ${error.message}`);
+        const { data, error } = await supabase
+          .from("schedule_requests")
+          .insert(insertData)
+          .select();
+
+        if (error) {
+          Alert.alert("Error", `Failed to create new request: ${error.message}`);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          Alert.alert("Error", "Failed to create the new request. Please try again.");
+          return;
+        }
+
+        Alert.alert("Success", "New meeting request created!");
+        setRescheduleMeeting(false);
+        await fetchScheduleRequest();
         return;
       }
+      
+      // If status is "pending" or "accepted", update existing request
+      if (currentStatus === "pending" || currentStatus === "accepted") {
+        console.log(`🔄 Updating existing request (status: ${currentStatus})`);
+        
+        const updateData = {
+          location: meetupPlace,
+          meet_date: localDateString,
+          meet_time: localTimeString,
+          status: "pending", // Reset to pending when rescheduling
+          last_modified_by: viewId,
+          // Reset attendance when rescheduling
+          finder_attendance: false,
+          owner_attendance: false,
+          finder_description: null,
+          owner_description: null,
+        };
 
+        const { data, error } = await supabase
+          .from("schedule_requests")
+          .update(updateData)
+          .eq("request_id", scheduleRequest.request_id)
+          .select();
 
-      if (!data || data.length === 0) {
-        Alert.alert("Error", "Failed to update the request. Please try again.");
+        if (error) {
+          Alert.alert("Error", `Failed to update: ${error.message}`);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          Alert.alert("Error", "Failed to update the request. Please try again.");
+          return;
+        }
+
+        Alert.alert("Success", "Meeting request updated and waiting for confirmation!");
+        setRescheduleMeeting(false);
+        await fetchScheduleRequest();
         return;
       }
-
-
-      Alert.alert("Success", "Meeting request updated and waiting for confirmation!");
-      setRescheduleMeeting(false);
-      await fetchScheduleRequest();
+      
+      // Fallback for any other unexpected status
+      Alert.alert("Error", `Cannot reschedule from status: ${currentStatus}`);
+      return;
     }
-    // create a new request
+    
+    // NO EXISTING REQUEST - CREATE NEW (first time scheduling)
     else {
+      console.log("🆕 Creating FIRST request (no previous request)");
+      
       const insertData = {
         post_id: Number(id),
         owner_id: viewId,
@@ -624,27 +712,23 @@ export default function PostDetails({ propId, onClose }: Props) {
         last_modified_by: viewId,
       };
 
-
       const { data, error } = await supabase
         .from("schedule_requests")
         .insert(insertData)
         .select();
-
 
       if (error) {
         Alert.alert("Error", `Failed to create request: ${error.message}`);
         return;
       }
 
-
       if (!data || data.length === 0) {
         Alert.alert("Error", "Failed to create the request. Please try again.");
         return;
       }
 
-
       Alert.alert("Success", "Request Sent!");
-      setRescheduleMeeting(false); // reset reschedule state after creating new request
+      setRescheduleMeeting(false);
       await fetchScheduleRequest();
     }
   };
@@ -723,7 +807,7 @@ export default function PostDetails({ propId, onClose }: Props) {
   };
 
 
-  // Cancel meeting request and delete the meeting request from database
+  // Cancel meeting request and change the status to 'deleted'
   const handleCancelRequest = async () => {
     if (!scheduleRequest) {
       console.log('❌ No schedule request to cancel');
@@ -735,70 +819,51 @@ export default function PostDetails({ propId, onClose }: Props) {
     console.log('📝 Request owner:', scheduleRequest.owner_id);
     console.log('📮 Post owner:', ownerId);
 
-    // Check permissions
-    const canDelete = viewId === scheduleRequest.owner_id || viewId === ownerId;
+    // Check permissions - only owner or requester can cancel
+    const canCancel = viewId === scheduleRequest.owner_id || viewId === ownerId;
     
-    if (!canDelete) {
-      console.log('❌ User does not have permission to delete this request');
+    if (!canCancel) {
+      console.log('❌ User does not have permission to cancel this request');
       Alert.alert("Error", "You don't have permission to cancel this meeting.");
       return;
     }
 
-    console.log('✅ User has permission to delete');
+    console.log('✅ User has permission to cancel');
 
     Alert.alert(
       "Cancel Meeting",
-      "Are you sure you want to cancel this meeting request? This will permanently delete the request.",
+      "Are you sure you want to cancel this meeting request? You can create a new request later if needed.",
       [
         { text: "No", style: "cancel" },
-        // Around line 715 - UPDATE the success callback in handleCancelRequest
         {
           text: "Yes, Cancel",
           style: "destructive",
           onPress: async () => {
             try {
-              console.log('🗑️ Attempting to delete meeting request:', scheduleRequest.request_id);
+              console.log('🔄 Updating meeting status to deleted:', scheduleRequest.request_id);
               
+              // UPDATE status to 'deleted' instead of deleting the row
               const { data, error } = await supabase
                 .from("schedule_requests")
-                .delete()
+                .update({ 
+                  status: "deleted",
+                  last_modified_by: viewId 
+                })
                 .eq("request_id", scheduleRequest.request_id)
                 .select();
 
               if (error) {
-                console.error('❌ Delete error:', error);
-                Alert.alert("Error", `Failed to delete: ${error.message}\n\nPlease check your permissions.`);
+                console.error('❌ Update error:', error);
+                Alert.alert("Error", `Failed to cancel: ${error.message}`);
                 return;
               }
 
-              console.log('✅ Delete successful:', data);
+              console.log('✅ Status updated to deleted:', data);
               
-              // Immediate local state update
-              console.log('🧹 Resetting local state immediately...');
-              setScheduleRequest(null);
-              setHasScheduleRequest(false);
-              setMeetupPlace("");
-              setOriginalMeetupPlace("");
-              setRescheduleMeeting(false);
-              setLastModifiedBy("");
-              setMeetingFailed(false);
+              Alert.alert("Cancelled", "The meeting request has been cancelled.");
               
-              const nextValid = new Date();
-              nextValid.setTime(nextValid.getTime() + 10 * 60 * 1000);
-              nextValid.setSeconds(0);
-              nextValid.setMilliseconds(0);
-              setMeetupDate(nextValid);
-              setOriginalMeetupDate(nextValid);
-
-              Alert.alert("Cancelled", "The meeting request has been deleted.");
-              
-              console.log('✅ Local state fully reset after cancellation');
-              
-              // ✅ ADD THIS: Force a delayed refresh to catch any edge cases
-              setTimeout(() => {
-                console.log('🔄 Delayed refresh after cancellation');
-                fetchScheduleRequest();
-              }, 500);
+              // Refresh to get the updated state
+              await fetchScheduleRequest();
               
             } catch (err) {
               console.error('❌ Unexpected error during cancellation:', err);
@@ -867,6 +932,26 @@ export default function PostDetails({ propId, onClose }: Props) {
     }
     
     return sections;
+  };
+
+  interface CancelButtonProps {
+    onPress: () => void;
+  }
+
+  const CancelButton: React.FC<CancelButtonProps> = ({ onPress }) => {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={styles.cancelIconButton}
+        activeOpacity={0.7}
+      >
+        <Ionicons 
+          name="close-circle-outline" 
+          size={24} 
+          color="#f44336" 
+        />
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -1142,7 +1227,10 @@ export default function PostDetails({ propId, onClose }: Props) {
                     {scheduleRequest.status === "pending" && (
                       <>
                         {lastModifiedBy === viewId ? (
-                          <View style={styles.statusContainer}>
+                          // Item owner waiting for confirmation, 
+                            <View style={styles.statusContainerWithCancel}>
+                              {/* Cancel Button in top-right */}
+                              <CancelButton onPress={handleCancelRequest} />
                             <Ionicons
                               name="time-outline"
                               size={40}
@@ -1184,27 +1272,19 @@ export default function PostDetails({ propId, onClose }: Props) {
                                 </Text>
                               </View>
                             </View>
-                            <View style={styles.actionRow}>
-                              <ButtonOrange
-                                onPress={handleRescheduleClick}
-                                title="Reschedule"
-                                variant="primary"
-                                style={styles.actionBtn}
-                              />
-                              <ButtonOrange
-                                onPress={handleCancelRequest}
-                                title="Cancel Meeting"
-                                variant="secondary"
-                                textStyle={{fontSize: 13}}
-                                style={styles.actionBtn}
-                              />
-                            </View>
+                            <ButtonOrange
+                              onPress={handleRescheduleClick}
+                              title="Reschedule"
+                              variant="primary"
+                              style={styles.singleBtn}
+                            />
                           </View>
                         ) : (
                           //owner proposed new time
-                          <View
-                            style={[styles.statusContainer, { backgroundColor: "#FFF3E0" }]}
-                          >
+                          <View style={[styles.statusContainerWithCancel, { backgroundColor: "#FFF3E0" }]}>
+                            {/* Cancel Button in top-right */}
+                            <CancelButton onPress={handleCancelRequest} />
+
                             <Ionicons
                               name="notifications"
                               size={40}
@@ -1268,9 +1348,10 @@ export default function PostDetails({ propId, onClose }: Props) {
 
                     {/* Accepted status - meeting confirmed */}
                     {scheduleRequest.status === "accepted" && (
-                      <View
-                        style={[styles.statusContainer, { backgroundColor: "#E8F5E9" }]}
-                      >
+                      <View style={[styles.statusContainerWithCancel, { backgroundColor: "#E8F5E9" }]}>
+                        {/* Cancel Button in top-right */}
+                        <CancelButton onPress={handleCancelRequest} />
+
                         <Ionicons name="checkmark-circle" size={50} color="#4CAF50" />
                         <Text style={styles.statusTitle}>Meeting Confirmed!</Text>
                         <Text style={styles.statusSubtitle}>
@@ -1296,29 +1377,20 @@ export default function PostDetails({ propId, onClose }: Props) {
                             </Text>
                           </View>
                         </View>
-                        <View style={styles.actionRow}>
-                          <ButtonOrange
-                            onPress={handleRescheduleClick}
-                            title="Reschedule"
-                            variant="primary"
-                            style={styles.actionBtn}
-                          />
-                          <ButtonOrange
-                            onPress={handleCancelRequest}
-                            title="Cancel Meeting"
-                            variant="secondary"
-                            textStyle={{fontSize: 13}}
-                            style={styles.actionBtn}
-                          />
-                        </View>
+                        <ButtonOrange
+                          onPress={handleRescheduleClick}
+                          title="Reschedule"
+                          variant="primary"
+                          style={styles.singleBtn}
+                        />
                       </View>
                     )}
 
                     {/* Failed status - meeting was marked as failed */}
                     {scheduleRequest.status === "failed" && (
-                      <View
-                        style={[styles.statusContainer, { backgroundColor: "#FFEBEE" }]}
-                      >
+                      <View style={[styles.statusContainerWithCancel, { backgroundColor: "#FFEBEE" }]}>
+                        {/* Cancel Button in top-right */}
+                        <CancelButton onPress={handleCancelRequest} />
                         <Ionicons name="close-circle" size={50} color="#f44336" />
                         <Text style={[styles.statusTitle, { color: "#f44336" }]}>Meeting Failed</Text>
                         <Text style={styles.statusSubtitle}>
@@ -1358,22 +1430,12 @@ export default function PostDetails({ propId, onClose }: Props) {
                                   : "Reason: Item was not successfully received."}
                           </Text>
                         </View>
-
-                        <View style={styles.actionRow}>
-                          <ButtonOrange
-                            onPress={handleRescheduleClick}
-                            title="Reschedule"
-                            variant="primary"
-                            style={styles.actionBtn}
-                          />
-                          <ButtonOrange
-                            onPress={handleCancelRequest}
-                            title="Cancel Meeting"
-                            variant="secondary"
-                            textStyle={{ fontSize: 13 }}
-                            style={styles.actionBtn}
-                          />
-                        </View>
+                        <ButtonOrange
+                          onPress={handleRescheduleClick}
+                          title="Reschedule"
+                          variant="primary"
+                          style={styles.singleBtn}
+                        />
                       </View>
                     )}
                   </>
@@ -1579,9 +1641,10 @@ export default function PostDetails({ propId, onClose }: Props) {
 
                     {/* Failed status - meeting was marked as failed - POST OWNER NOW HAS CANCEL RIGHTS */}
                     {scheduleRequest.status === "failed" && (
-                      <View
-                        style={[styles.statusContainer, { backgroundColor: "#FFEBEE" }]}
-                      >
+                      <View style={[styles.statusContainerWithCancel, { backgroundColor: "#FFEBEE" }]}>
+                      {/* Cancel Button in top-right for POST OWNER too */}
+                      <CancelButton onPress={handleCancelRequest} />
+
                         <Ionicons name="close-circle" size={50} color="#f44336" />
                         <Text style={[styles.statusTitle, { color: "#f44336" }]}>Meeting Failed</Text>
                         <Text style={styles.statusSubtitle}>
@@ -1620,23 +1683,12 @@ export default function PostDetails({ propId, onClose }: Props) {
                                   : "Reason: Item was not successfully received."}
                           </Text>
                         </View>
-
-                        <View style={styles.actionRow}>
-                          <ButtonOrange
-                            onPress={handleRescheduleClick}
-                            title="Reschedule"
-                            variant="primary"
-                            style={styles.actionBtn}
-                          />
-                          {/* post owner has the rights to cancel failed meeting */}
-                          <ButtonOrange
-                            onPress={handleCancelRequest}
-                            title="Cancel Meeting"
-                            variant="secondary"
-                            textStyle={{ fontSize: 13 }}
-                            style={styles.actionBtn}
-                          />
-                        </View>
+                        <ButtonOrange
+                          onPress={handleRescheduleClick}
+                          title="Reschedule"
+                          variant="primary"
+                          style={styles.singleBtn}
+                        />
                       </View>
                     )}
                   </>
@@ -2001,6 +2053,31 @@ const styles = StyleSheet.create({
     color: "#b71c1c",
     fontWeight: "600",
     lineHeight: 20,
+  },
+  statusContainerWithCancel: {
+    width: "90%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    marginVertical: 10,
+    margin: 10,
+    alignSelf: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    position: "relative", // Important for absolute positioning of cancel button
+  },
+  cancelIconButton: {
+    position: "absolute",
+    top: 15,
+    right: 15,
+    zIndex: 10,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(244, 67, 54, 0.1)", // Light red background
   },
 });
 
