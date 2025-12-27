@@ -57,7 +57,7 @@ export default function Attendance({
   const canToggleAttendance = (): boolean => {
     // ⚠️ COMMENT OUT THIS ENTIRE BLOCK FOR TESTING ⚠️
     // START OF TIME RESTRICTION - COMMENT THIS OUT IF YOU WANT TO TEST THE ATTENDANCE
-    /*
+    
     const now = new Date();
     const meetingDateTime = new Date(`${meetDate}T${meetTime}`);
     const fiveMinutesBefore = new Date(meetingDateTime.getTime() - 5 * 60 * 1000);
@@ -65,11 +65,11 @@ export default function Attendance({
     
     // Can only toggle within the range 5 minutes before and 10 minutes after the meeting time
     return now >= fiveMinutesBefore && now < tenMinutesAfter;
-    */
+    
     // END OF TIME RESTRICTION - COMMENT THIS OUT IF YOU WANT TO TEST THE ATTENDANCE
     
     // FOR TESTING: Always return true
-    return true;
+    // return true;
   };
 
   // Check meeting time status periodically

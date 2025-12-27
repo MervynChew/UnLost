@@ -169,7 +169,7 @@ export default function PostDetails({ propId, onClose }: Props) {
     if (!scheduleRequest?.meet_date || !scheduleRequest?.meet_time) return false;
     
     // ⚠️ COMMENT OUT FOR TESTING ⚠️
-    /*
+    
     const now = new Date();
     const meetingDateTime = new Date(`${scheduleRequest.meet_date}T${scheduleRequest.meet_time}`);
     const tenMinutesAfter = new Date(meetingDateTime.getTime() + 10 * 60 * 1000);
@@ -178,9 +178,9 @@ export default function PostDetails({ propId, onClose }: Props) {
     const bothAttended = scheduleRequest.finder_attendance && scheduleRequest.owner_attendance;
     
     return timePassed && !bothAttended;
-    */
     
-    return false; // FOR TESTING
+    
+    //return false; // FOR TESTING
   };
 
   const handleAutoFailMeeting = async () => {
