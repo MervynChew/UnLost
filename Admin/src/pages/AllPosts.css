@@ -542,7 +542,6 @@ input[type="text"],
 
 /* The underline for the active page number */
 .page-number.active::after {
-    content: "";
     position: absolute;
     bottom: 0;
     left: 20%;

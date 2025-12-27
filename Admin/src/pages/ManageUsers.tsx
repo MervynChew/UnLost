@@ -113,7 +113,7 @@ export default function ManageUsers() {
     );
   };
 
-  const handlePostClick = async (postId: string) => {
+  const handlePostClick = async (historyItem: UserHistory, type: 'post' | 'claim') => {
     setIsLoadingPost(true);
     try {
       // Replace this with your actual API endpoint
@@ -123,13 +123,15 @@ export default function ManageUsers() {
       // MOCK DELAY & FETCH (Simulating Database)
       setTimeout(() => {
         const mockFetchedData: DetailedPost = {
-          id: postId,
+          id: historyItem.id,
           date: '21/04/2025',
           status: 'Resolved',
-          imageUrl: `https://picsum.photos/seed/${postId}/400/300`,
+          imageUrl: `https://picsum.photos/seed/${historyItem.id}/400/300`,
           postedBy: selectedUser?.name || 'Unknown',
-          tags: ['Lost', 'Electronics', 'USM'],
-          description: "Found this near the library foyer. Please contact me.",
+          tags: type === 'post' ? ['Lost', 'Electronics'] : ['Claimed', 'Verified'],
+          description: type === 'post' 
+          ? "I found this item near the library. Please contact me for details." 
+          : "I have provided proof of ownership for this item.",
           time: '14:30',
           meetingPoint: 'Library Entrance',
           scheduleStatus: 'Completed'
@@ -237,7 +239,7 @@ export default function ManageUsers() {
               <h4 className="history-sub-title">My Posts</h4>
               <div className="history-list">
                 {selectedUser.history.posts.map(post => (
-                  <div key={post.id} className="history-card post-card" onClick={() => handlePostClick(post.id)}>
+                  <div key={post.id} className="history-card post-card" onClick={() => handlePostClick(post, 'post')}>
                     <img className="placeholder-box" src={`https://picsum.photos/seed/${post.id}/400/300`} alt="Post Placeholder" />
                     <div className="history-details">
                       <div className="grid-item">
@@ -258,7 +260,7 @@ export default function ManageUsers() {
               <h4 className="history-sub-title">My Claims </h4>
               <div className="history-list">
                 {selectedUser.history.claims.map(claim => (
-                  <div key={claim.id} className="history-card claim-card" onClick={() => setViewingHistoryItem(claim)}>
+                  <div key={claim.id} className="history-card claim-card" onClick={() => handlePostClick(claim, 'claim')}>
                     <img className="placeholder-box" src={`https://picsum.photos/seed/${claim.id}/400/300`} alt="Post Placeholder" />
                     <div className="history-grid-info">
                       <div className="grid-item">
@@ -288,11 +290,13 @@ export default function ManageUsers() {
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <button className="close-modal" onClick={() => setViewingHistoryItem(null)}>×</button>
 
-              <h2 className="modal-title">Post Details</h2>
+              <h2 className="modal-title">
+                {viewingHistoryItem.id.startsWith('P') ? 'Post Details' : 'Claim Details'}
+              </h2>
 
               <div className="modal-scroll-area">
                 <div className="detail-image-box">
-                  <img src={viewingHistoryItem.imageUrl} alt="Large view" className="modal-large-img" />
+                  <img src={viewingHistoryItem.imageUrl} alt="Item" className="modal-large-img" />
                 </div>
 
                 <section className="detail-section">
@@ -320,37 +324,37 @@ export default function ManageUsers() {
                 </section>
 
                 <section className="detail-section">
-                <h3>Schedule</h3>
-                <div className="schedule-info-box">
-                  <div className="schedule-status-badge">{viewingHistoryItem.scheduleStatus}</div>
-                  
-                  {/* Date Row */}
-                  <div className="schedule-row">
-                    <span className="icon-circle">📅</span> 
-                    <div>
-                      <p className="label">Date</p>
-                      <strong>{viewingHistoryItem.date}</strong>
+                  <h3>Schedule</h3>
+                  <div className="schedule-info-box">
+                    <div className="schedule-status-badge">{viewingHistoryItem.scheduleStatus}</div>
+                    
+                    {/* Date Row */}
+                    <div className="schedule-row">
+                      <span className="icon-circle">📅</span> 
+                      <div>
+                        <p className="label">Date</p>
+                        <strong>{viewingHistoryItem.date || 'TBD'}</strong>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Time Row */}
-                  <div className="schedule-row">
-                    <span className="icon-circle">🕒</span>
-                    <div>
-                      <p className="label">Time</p>
-                      <strong>{viewingHistoryItem.time}</strong>
+                    {/* Time Row */}
+                    <div className="schedule-row">
+                      <span className="icon-circle">🕒</span>
+                      <div>
+                        <p className="label">Time</p>
+                        <strong>{viewingHistoryItem.time || 'TBD'}</strong>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Meeting Point Row */}
-                  <div className="schedule-row">
-                    <span className="icon-circle">📍</span>
-                    <div>
-                      <p className="label">Meeting Point</p>
-                      <strong>{viewingHistoryItem.meetingPoint}</strong>
+                    {/* Meeting Point Row */}
+                    <div className="schedule-row">
+                      <span className="icon-circle">📍</span>
+                      <div>
+                        <p className="label">Meeting Point</p>
+                        <strong>{viewingHistoryItem.meetingPoint || 'TBD'}</strong>
+                      </div>
                     </div>
                   </div>
-                </div>
                 </section>
               </div>
 
