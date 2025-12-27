@@ -13,7 +13,16 @@ type ScheduleProps = {
 }
 
 export default function Schedule({setDateAndTime, setPlace, setReschedule, initialDate, initialPlace}: ScheduleProps) {
-  const [date, setDate] = useState(initialDate || new Date(Date.now() + 10 * 60 * 1000));
+  // Calculate next valid time (current + 10 minutes) as default
+  const getNextValidTime = () => {
+    const now = new Date();
+    const nextValid = new Date(now.getTime() + 10 * 60 * 1000);
+    nextValid.setSeconds(0);
+    nextValid.setMilliseconds(0);
+    return nextValid;
+  };
+
+  const [date, setDate] = useState(initialDate || getNextValidTime());
   
   // Controls for Date/Time Modal
   const [showPicker, setShowPicker] = useState(false);
@@ -32,15 +41,37 @@ export default function Schedule({setDateAndTime, setPlace, setReschedule, initi
     "Admin Building"
   ];
 
-  // Update parent component when initial values are provided
+  // Initialize ONCE on mount - FIX: Call parent callbacks immediately for first-time setup
   useEffect(() => {
     if (initialDate) {
+      setDate(initialDate);
       setDateAndTime(initialDate);
+    } else {
+      // FIX: For first-time schedule, set the backend to next valid time immediately
+      const nextValid = getNextValidTime();
+      setDate(nextValid);
+      setDateAndTime(nextValid);
     }
+    
     if (initialPlace) {
+      setSelectedPlace(initialPlace);
       setPlace(initialPlace);
     }
-  }, [initialDate, initialPlace]);
+  }, []); // Empty array - only run once!
+
+  // Sync internal state when props change from outside (real-time updates)
+  // But DON'T call parent callbacks to avoid infinite loop
+  useEffect(() => {
+    if (initialDate && initialDate.getTime() !== date.getTime()) {
+      setDate(initialDate);
+    }
+  }, [initialDate]);
+
+  useEffect(() => {
+    if (initialPlace && initialPlace !== selectedPlace) {
+      setSelectedPlace(initialPlace);
+    }
+  }, [initialPlace]);
 
   // --- Date & Time Handlers ---
   const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -80,9 +111,12 @@ export default function Schedule({setDateAndTime, setPlace, setReschedule, initi
     const now = new Date();
     const minDateTime = new Date(now.getTime() + 10 * 60 * 1000);
 
-    // If previously selected date is already lesser than 10 minues, when user click on the openDatePicker auto set to the next valid time
+    // If previously selected date is already lesser than 10 minutes, when user click on the openDatePicker auto set to the next valid time
     if (date < minDateTime) {
-      setDate(minDateTime);
+      const newDate = new Date(minDateTime);
+      setDate(newDate);
+      setDateAndTime(newDate);
+      setReschedule(true);
     }
 
     setPickerMode(mode);
