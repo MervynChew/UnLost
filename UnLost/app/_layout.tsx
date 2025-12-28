@@ -51,7 +51,13 @@ export default function RootLayout() {
     // Check if the user is currently inside the (tabs) folder
     const inTabsGroup = segments[0] === '(tabs)';
 
-    if (session && !inTabsGroup) {
+    // ✅ ADDED: routes that are allowed OUTSIDE (tabs) while logged in
+    const publicRoutes = ['profile'];
+
+    // ✅ ADDED
+    const inPublicRoute = publicRoutes.includes(segments[0]);
+
+    if (session && !inTabsGroup && !inPublicRoute) {
       // User is logged in but NOT in tabs -> Send to Home
       router.replace('/(tabs)/home');
     } else if (!session && inTabsGroup) {
