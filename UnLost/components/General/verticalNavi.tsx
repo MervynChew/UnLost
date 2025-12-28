@@ -23,12 +23,6 @@ export default function JumpMenu({ sections, activeSection, onTabPress, opacity 
         return isActive ? 'document-text' : 'document-text-outline';
       case 'Schedule':
         return isActive ? 'calendar' : 'calendar-outline';
-      case 'Attendance Tracking':
-        return isActive ? 'checkmark-done-circle' : 'checkmark-done-circle-outline';
-      case 'Item Retrieval':
-        return isActive ? 'ribbon' : 'ribbon-outline';
-      case 'Claimed By':
-        return isActive ? 'person' : 'person-outline';
       default:
         return 'help-circle-outline';
     }

@@ -230,39 +230,39 @@ export default function AllPosts() {
               </div>
             )}
           </div>
+        </div>
 
-          {/* --- Suggestion Dropdown --- */}
-          {showSuggestions && (
-            <div className="suggestions-dropdown">
-              <div className="suggestion-section">
-                <h4>Selected</h4>
-                <div className="suggestion-chips">
-                  {selectedTags.map(tag => (
-                    <span key={tag} className="search-tag active-tag">
-                      {tag} <span className="close-x" onClick={() => removeTag(tag)}>x</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="suggestion-section">
-                <h4>Suggestion</h4>
-                <div className="suggestion-chips">
-                  {suggestions.map(tag => (
-                    <button 
-                      key={tag} 
-                      className="suggest-chip"
-                      onClick={() => addTag(tag)}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
+        {/* --- Suggestion Dropdown --- */}
+        {showSuggestions && (
+          <div className="suggestions-dropdown">
+            <div className="suggestion-section">
+              <h4>Selected</h4>
+              <div className="suggestion-chips">
+                {selectedTags.map(tag => (
+                  <span key={tag} className="search-tag active-tag">
+                    {tag} <span className="close-x" onClick={() => removeTag(tag)}>x</span>
+                  </span>
+                ))}
               </div>
             </div>
-          )}
-        </div>
-        </div>
+
+            <div className="suggestion-section">
+              <h4>Suggestion</h4>
+              <div className="suggestion-chips">
+                {suggestions.map(tag => (
+                  <button 
+                    key={tag} 
+                    className="suggest-chip"
+                    onClick={() => addTag(tag)}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* --- Card Grid (ONLY ONE GRID) --- */}
       <div className="posts-grid">

@@ -1,40 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  Button,
-} from 'react-native';
-import { supabase } from '../lib/supabase';
-import { useRouter } from 'expo-router';
-import BackButton from '../components/General/backButton';
+import { View, Text, StyleSheet, Button, Image, TouchableOpacity, Alert, ActivityIndicator  } from 'react-native';
+import { supabase } from '../../lib/supabase'; 
+
+import React, { useState, useEffect } from 'react';
 
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
+
+import * as FileSystem from 'expo-file-system/legacy'; // Use the legacy import you fixed earlier
 
 export default function ProfileScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const router = useRouter();
-
-  /* ================= FETCH PROFILE IMAGE ================= */
+  // 1. Fetch existing image on load
   const getProfileImage = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('profiles')
-      .select('profile_image') // ⚠️ MUST EXIST in DB
+      .select('profile_image')
       .eq('id', session.user.id)
       .single();
 
-    // 🔐 SAFE: only set if exists
-    if (!error && data?.profile_image) {
+    if (data?.profile_image) {
       setImage(data.profile_image);
     }
   };
@@ -43,11 +31,12 @@ export default function ProfileScreen() {
     getProfileImage();
   }, []);
 
-  /* ================= UPLOAD AVATAR ================= */
+  // 2. THE UPLOAD LOGIC
   const uploadAvatar = async () => {
     try {
       setLoading(true);
 
+      // A. Pick Image
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -55,109 +44,92 @@ export default function ProfileScreen() {
         quality: 0.5,
       });
 
-      if (result.canceled) return;
+      if (result.canceled) {
+        setLoading(false);
+        return;
+      }
 
       const img = result.assets[0];
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      // B. Prepare File for Upload (Read as Base64)
       const base64 = await FileSystem.readAsStringAsync(img.uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      const filePath = `${session.user.id}/${Date.now()}.png`;
+      // Unique filename: "user_id/timestamp.png"
+      const filePath = `${session.user.id}/${new Date().getTime()}.png`;
 
+      // C. Upload to Storage Bucket ('avatars')
       const { error: uploadError } = await supabase.storage
-        .from('avatars')
+        .from('avatars') // <--- MUST MATCH YOUR BUCKET NAME
         .upload(filePath, decodeURIComponent(escape(atob(base64))), {
           contentType: 'image/png',
         });
 
       if (uploadError) throw uploadError;
 
+      // D. Get Public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
+      // E. "LINK IT" -> Update Database
       const { error: dbError } = await supabase
         .from('profiles')
-        .update({ profile_image: publicUrl })
+        .update({ profile_image: publicUrl }) // <--- Saving the link here
         .eq('id', session.user.id);
 
       if (dbError) throw dbError;
 
+      // F. Update UI
       setImage(publicUrl);
-      Alert.alert('Success', 'Profile picture updated!');
+      Alert.alert("Success", "Profile picture updated!");
+
     } catch (error) {
       console.log(error);
-      Alert.alert('Error', 'Failed to upload image.');
+      Alert.alert("Error", "Failed to upload image.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  /* ================= UI ================= */
   return (
     <View style={styles.container}>
-      <BackButton onPress={() => router.back()} />
-
-      <Text style={styles.title}>My Profile</Text>
-
-      <Button
-        title="Sign Out"
-        onPress={async () => {
-          try {
-            await supabase.auth.signOut();
-            // redirect to login/root page immediately
-            router.replace('/'); 
-          } catch (error) {
-            console.log(error);
-            Alert.alert('Error', 'Failed to sign out.');
-          }
-        }}
-      />
-
-      <TouchableOpacity onPress={uploadAvatar} disabled={loading}>
+      <Text style={styles.text}>My Profile</Text>
+      <Button title="Sign Out" onPress={() => supabase.auth.signOut()} />
+        <TouchableOpacity onPress={uploadAvatar} disabled={loading}>
         {loading ? (
           <View style={[styles.avatar, styles.loading]}>
-            <ActivityIndicator />
+            <ActivityIndicator size="small" color="#000" />
           </View>
         ) : (
-          <Image
-            source={
-              image
-                ? { uri: image }
-                : require('../assets/image/Profile/default_profile.avif')
-            }
+          <Image 
+            source={image ? { uri: image } : require('../../assets/image/Profile/default_profile.avif')} 
             style={styles.avatar}
           />
         )}
+        {/* Optional: Edit Icon Badge */}
         <View style={styles.editBadge} />
       </TouchableOpacity>
     </View>
   );
 }
 
-/* ================= STYLES ================= */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    paddingTop: 40,
-    backgroundColor: '#fff',
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center',
+    width: 60,
+    height: 60,
   },
-  title: {
-    fontSize: 20,
-    marginVertical: 20,
-  },
+  text: { fontSize: 18, marginBottom: 20 },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 2,
     borderColor: '#ccc',
     backgroundColor: '#f0f0f0',
-    marginTop: 20,
   },
   loading: {
     justifyContent: 'center',
@@ -165,13 +137,13 @@ const styles = StyleSheet.create({
   },
   editBadge: {
     position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 16,
-    height: 16,
+    bottom: 0,
+    right: 0,
+    width: 15,
+    height: 15,
     borderRadius: 8,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF', // Blue dot to show it's editable
     borderWidth: 2,
-    borderColor: '#fff',
-  },
+    borderColor: 'white',
+  }
 });

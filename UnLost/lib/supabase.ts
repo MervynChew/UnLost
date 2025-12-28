@@ -1,4 +1,4 @@
-import { AppState } from 'react-native';
+import { AppState } from 'react-native'; // <--- IMPORT THIS
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
@@ -13,14 +13,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
-  // ADD THIS: Enable real-time functionality
-  realtime: {
-    params: {
-      eventsPerSecond: 10, // Limit events to prevent overwhelming the client
-    },
-  },
 });
 
+// --- ADD THIS BLOCK ---
 // This tells Supabase to only manage the session when the app is active
 AppState.addEventListener('change', (state) => {
   if (state === 'active') {
