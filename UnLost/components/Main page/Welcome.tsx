@@ -8,7 +8,7 @@ type WelcomePerson = {
 export default function Welcome({name}: WelcomePerson) {
   return (
     <View style={styles.container}>
-      <Text style={styles.welcome}>Hi! welcome,</Text>
+      <Text style={styles.welcome}>Hi! Welcome,</Text>
       <Text style={styles.user}>{name}</Text>
     </View>
   )
@@ -25,5 +25,6 @@ const styles = StyleSheet.create({
   },
   user: {
     fontSize: 22,
+    fontWeight: 'bold',
   },
 })

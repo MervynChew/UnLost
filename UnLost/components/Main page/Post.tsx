@@ -96,7 +96,7 @@ return (
 const styles = StyleSheet.create({
   postContainer: {
     marginBottom: 20,
-    backgroundColor: '#fff', // <--- Back to White
+    backgroundColor: '#ffffffff', // <--- Back to White
     borderRadius: 15,
     overflow: 'hidden', 
     flex: 1,
@@ -130,6 +130,6 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#000', // Black text usually looks best on pastel tags
+    color: '#000000ff', // Black text usually looks best on pastel tags
   }
 });

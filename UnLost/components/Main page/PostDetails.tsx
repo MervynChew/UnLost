@@ -1156,7 +1156,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginTop: 20,
     marginBottom: 20,
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffffff",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
