@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, StyleSheet, Image, Text, Dimensions, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { useRouter } from 'expo-router';
@@ -10,7 +10,9 @@ type PostProps = {
     post_image: string;
     tags: string[];
     description?: string; 
-  }
+  };
+  autoOpen?: boolean; //  Auto-open the specific post's modal
+  onAutoOpenComplete?: () => void; // Callback when auto-open is done
 };
 
 const BACKGROUND_OPTIONS = [
@@ -32,7 +34,7 @@ const gap = 15;
 const screenPadding = 20;
 const cardWidth = (screenWidth - (screenPadding * 2) - gap) / numColumns;
 
-export default function Post({ post }: PostProps) {
+export default function Post({ post, autoOpen, onAutoOpenComplete }: PostProps) {
 
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -41,6 +43,16 @@ export default function Post({ post }: PostProps) {
   const tagColors = useMemo(() => {
     return post.tags ? post.tags.map(() => getRandomThemeColor()) : [];
   }, [post.post_id, post.tags]);
+
+  // ⭐ Auto-open modal if autoOpen prop is true
+  useEffect(() => {
+    if (autoOpen) {
+      console.log('🎯 Auto-opening modal for post:', post.post_id);
+      setModalVisible(true);
+      // Call the callback to let parent know we've opened
+      onAutoOpenComplete?.();
+    }
+  }, [autoOpen]);
   
 return (
     <>

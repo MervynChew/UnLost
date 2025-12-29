@@ -106,7 +106,8 @@ export default function PostDetails({ propId, onClose }: Props) {
     } else {
       setPost(data);
       setOwnerId(data.user_id);
-      setIsItemCompleted(data.status === "completed"); // Check if completed
+      setIsItemCompleted(data.status === "claimed");
+      setPostStatus(data.status); 
     }
 
 
@@ -319,7 +320,7 @@ export default function PostDetails({ propId, onClose }: Props) {
 
     const channelName = `schedule-requests-post-${id}`;
     
-    const channel = supabase
+    const scheduleChannel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
@@ -366,21 +367,13 @@ export default function PostDetails({ propId, onClose }: Props) {
           
           // HANDLE UPDATE - Meeting details changed
           if (payload.eventType === 'UPDATE' && payload.new) {
-            console.log('🔄 UPDATE event - Meeting updated');
             const newData = payload.new;
             
             // If status changed to "deleted" / inactive", treat like cancellation
             if (newData.status === "deleted" || newData.status === "inactive") {
-              console.log('🗑️ Meeting cancelled or marked inactive (status:', newData.status, ')');
               
-              // Only reset if this is OUR current schedule request
+              // Only reset if this is current schedule request
               if (scheduleRequest && newData.request_id === scheduleRequest.request_id) {
-                console.log('🧹 Resetting state for cancelled meeting');
-                
-                // Just log it and let the INSERT event handle the new request
-                console.log('⏳ Waiting for new request to arrive...');
-                
-                // Set a flag that we're transitioning
                 setScheduleRequest(null);
                 setHasScheduleRequest(false);
               }
@@ -423,22 +416,37 @@ export default function PostDetails({ propId, onClose }: Props) {
           }
         }
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Successfully subscribed to real-time updates on channel:', channelName);
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Channel error - reconnecting...');
-        } else if (status === 'CLOSED') {
-          console.log('🚪 Channel closed');
-        } else {
-          console.log('📡 Subscription status:', status);
-        }
-      });
+      .subscribe();
+
+      // NEW: Channel for posts table to detect status changes
+      const postsChannel = supabase
+        .channel(`posts-${id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'posts',
+            filter: `post_id=eq.${id}`
+          },
+          (payload) => {
+            console.log('📮 Post updated:', payload.new);
+            
+            if (payload.new && payload.new.status === 'claimed') {
+              console.log('✅ Post status changed to claimed');
+              setIsItemCompleted(true);
+              setPostStatus("claimed");
+              fetchPostDetails(); // Refresh to get the claim_date
+            }
+          }
+        )
+        .subscribe();
 
     // Cleanup function
     return () => {
       console.log('🧹 Cleaning up subscription:', channelName);
-      supabase.removeChannel(channel);
+      supabase.removeChannel(scheduleChannel);
+      supabase.removeChannel(postsChannel);
     };
   }, [id, scheduleRequest]);
 
@@ -504,12 +512,34 @@ export default function PostDetails({ propId, onClose }: Props) {
     );
   }
 
-  const handleClaimSuccess = () => {
+  const handleClaimSuccess = async() => {
     console.log('✅ Item completed successfully');
-    setIsItemCompleted(true);
-    setPostStatus("completed");
-    fetchPostDetails();
-    fetchScheduleRequest();
+    try {
+      // Update the posts table: set status to 'claimed' and claim_date to now
+      const { error: postError } = await supabase
+        .from('posts')
+        .update({ 
+          status: 'claimed',
+          claim_date: new Date().toISOString()
+        })
+        .eq('post_id', Number(id));
+
+      if (postError) {
+        console.error('Error updating post status:', postError);
+        Alert.alert('Error', 'Failed to update post status');
+        return;
+      }
+
+      console.log('✅ Post status updated to claimed');
+      
+      setIsItemCompleted(true);
+      setPostStatus("completed");
+      fetchPostDetails();
+      fetchScheduleRequest();
+    } catch (error) {
+      console.error('❌ Unexpected error in handleClaimSuccess:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
   };
 
   const handleClaimFailure = () => {
@@ -593,45 +623,184 @@ export default function PostDetails({ propId, onClose }: Props) {
     const minutes = String(meetupDate.getMinutes()).padStart(2, "0");
     const localTimeString = `${hours}:${minutes}:00`;
 
-    // ============================================
-    // UPDATED LOGIC: Check if we should UPDATE or CREATE NEW
-    // ============================================
-    
-    if (hasScheduleRequest && scheduleRequest) {
-      const currentStatus = scheduleRequest.status;
-      
-      // If status is "failed" or "deleted", CREATE NEW REQUEST
-      if (currentStatus === "failed" || currentStatus === "deleted") {
-        console.log(`🆕 Creating NEW request (previous status: ${currentStatus})`);
-
-        // Mark the old request as "inactive" so it does not show up again
+    try {
+      // ============================================
+      // CASE 1: EXISTING REQUEST EXISTS
+      // ============================================
+      if (hasScheduleRequest && scheduleRequest) {
+        const currentStatus = scheduleRequest.status;
+        
+        // ============================================
+        // CASE 1A: Meeting FAILED - Create NEW request
+        // ============================================
         if (currentStatus === "failed") {
+          console.log(`🆕 Creating NEW request after failed meeting`);
+
+          // Step 1: Mark the old failed meeting as "inactive"
           console.log(`🔄 Marking failed meeting as inactive: ${scheduleRequest.request_id}`);
-          await supabase
+          const { error: inactiveError } = await supabase
             .from("schedule_requests")
             .update({ status: "inactive" })
             .eq("request_id", scheduleRequest.request_id);
-        }
 
-        // Use original requester ID, not current viewer ID
-        const requestOwnerId = scheduleRequest.owner_id;
+          if (inactiveError) {
+            console.error('Error marking as inactive:', inactiveError);
+            Alert.alert("Error", `Failed to update old request: ${inactiveError.message}`);
+            return;
+          }
+
+          // Step 2: Create NEW request with original requester ID
+          const requestOwnerId = scheduleRequest.owner_id;
+          
+          const insertData = {
+            post_id: Number(id),
+            owner_id: requestOwnerId, // Keep original requester
+            location: meetupPlace,
+            meet_date: localDateString,
+            meet_time: localTimeString,
+            status: "pending",
+            last_modified_by: viewId, // Current user is the one making changes
+            finder_attendance: false,
+            owner_attendance: false,
+            finder_description: null,
+            owner_description: null,
+          };
+
+          console.log('📝 Creating new request with owner_id:', requestOwnerId, 'modified by:', viewId);
+
+          const { data, error } = await supabase
+            .from("schedule_requests")
+            .insert(insertData)
+            .select();
+
+          if (error) {
+            Alert.alert("Error", `Failed to create new request: ${error.message}`);
+            return;
+          }
+
+          if (!data || data.length === 0) {
+            Alert.alert("Error", "Failed to create the new request. Please try again.");
+            return;
+          }
+
+          Alert.alert("Success", "New meeting request created! The other party will be notified.");
+          setRescheduleMeeting(false);
+          await fetchScheduleRequest();
+          return;
+        }
+        
+        // ============================================
+        // CASE 1B: Meeting DELETED - Create NEW request
+        // ============================================
+        if (currentStatus === "deleted") {
+          console.log(`🆕 Creating NEW request (previous was deleted)`);
+
+          const requestOwnerId = scheduleRequest.owner_id;
+          
+          const insertData = {
+            post_id: Number(id),
+            owner_id: requestOwnerId,
+            location: meetupPlace,
+            meet_date: localDateString,
+            meet_time: localTimeString,
+            status: "pending",
+            last_modified_by: viewId,
+            finder_attendance: false,
+            owner_attendance: false,
+            finder_description: null,
+            owner_description: null,
+          };
+
+          const { data, error } = await supabase
+            .from("schedule_requests")
+            .insert(insertData)
+            .select();
+
+          if (error) {
+            Alert.alert("Error", `Failed to create new request: ${error.message}`);
+            return;
+          }
+
+          if (!data || data.length === 0) {
+            Alert.alert("Error", "Failed to create the new request. Please try again.");
+            return;
+          }
+
+          Alert.alert("Success", "New meeting request created!");
+          setRescheduleMeeting(false);
+          await fetchScheduleRequest();
+          return;
+        }
+        
+        // ============================================
+        // CASE 1C: Meeting PENDING or ACCEPTED - UPDATE existing
+        // ============================================
+        if (currentStatus === "pending" || currentStatus === "accepted") {
+          console.log(`🔄 Updating existing request (status: ${currentStatus})`);
+          
+          const updateData = {
+            location: meetupPlace,
+            meet_date: localDateString,
+            meet_time: localTimeString,
+            status: "pending", // ⭐ Reset to pending when rescheduling
+            last_modified_by: viewId, // ⭐ CRITICAL: This determines who gets notification
+            // Reset attendance when rescheduling
+            finder_attendance: false,
+            owner_attendance: false,
+            finder_description: null,
+            owner_description: null,
+          };
+
+          console.log('📝 Updating request with last_modified_by:', viewId);
+
+          const { data, error } = await supabase
+            .from("schedule_requests")
+            .update(updateData)
+            .eq("request_id", scheduleRequest.request_id)
+            .select();
+
+          if (error) {
+            Alert.alert("Error", `Failed to update: ${error.message}`);
+            return;
+          }
+
+          if (!data || data.length === 0) {
+            Alert.alert("Error", "Failed to update the request. Please try again.");
+            return;
+          }
+
+          // ⭐ Better success message based on who's updating
+          const isReschedule = currentStatus === "accepted";
+          const message = isReschedule 
+            ? "Meeting rescheduled! The other party will be notified and needs to confirm."
+            : "Meeting time updated! Waiting for confirmation.";
+
+          Alert.alert("Success", message);
+          setRescheduleMeeting(false);
+          await fetchScheduleRequest();
+          return;
+        }
+        
+        // Fallback for any other unexpected status
+        Alert.alert("Error", `Cannot reschedule from status: ${currentStatus}`);
+        return;
+      }
+      
+      // ============================================
+      // CASE 2: NO EXISTING REQUEST - First time scheduling
+      // ============================================
+      else {
+        console.log("🆕 Creating FIRST request (no previous request)");
         
         const insertData = {
           post_id: Number(id),
-          owner_id: requestOwnerId,
+          owner_id: viewId, // First request: current user is the requester
           location: meetupPlace,
           meet_date: localDateString,
           meet_time: localTimeString,
           status: "pending",
           last_modified_by: viewId,
-          // New request starts fresh - no attendance/descriptions
-          finder_attendance: false,
-          owner_attendance: false,
-          finder_description: null,
-          owner_description: null,
         };
-
-        console.log('📝 Creating new request with owner_id:', requestOwnerId, 'modified by:', viewId);
 
         const { data, error } = await supabase
           .from("schedule_requests")
@@ -639,97 +808,22 @@ export default function PostDetails({ propId, onClose }: Props) {
           .select();
 
         if (error) {
-          Alert.alert("Error", `Failed to create new request: ${error.message}`);
+          Alert.alert("Error", `Failed to create request: ${error.message}`);
           return;
         }
 
         if (!data || data.length === 0) {
-          Alert.alert("Error", "Failed to create the new request. Please try again.");
+          Alert.alert("Error", "Failed to create the request. Please try again.");
           return;
         }
 
-        Alert.alert("Success", "New meeting request created!");
+        Alert.alert("Success", "Request Sent! The post owner will be notified.");
         setRescheduleMeeting(false);
         await fetchScheduleRequest();
-        return;
       }
-      
-      // If status is "pending" or "accepted", update existing request
-      if (currentStatus === "pending" || currentStatus === "accepted") {
-        console.log(`🔄 Updating existing request (status: ${currentStatus})`);
-        
-        const updateData = {
-          location: meetupPlace,
-          meet_date: localDateString,
-          meet_time: localTimeString,
-          status: "pending", // Reset to pending when rescheduling
-          last_modified_by: viewId,
-          // Reset attendance when rescheduling
-          finder_attendance: false,
-          owner_attendance: false,
-          finder_description: null,
-          owner_description: null,
-        };
-
-        const { data, error } = await supabase
-          .from("schedule_requests")
-          .update(updateData)
-          .eq("request_id", scheduleRequest.request_id)
-          .select();
-
-        if (error) {
-          Alert.alert("Error", `Failed to update: ${error.message}`);
-          return;
-        }
-
-        if (!data || data.length === 0) {
-          Alert.alert("Error", "Failed to update the request. Please try again.");
-          return;
-        }
-
-        Alert.alert("Success", "Meeting request updated and waiting for confirmation!");
-        setRescheduleMeeting(false);
-        await fetchScheduleRequest();
-        return;
-      }
-      
-      // Fallback for any other unexpected status
-      Alert.alert("Error", `Cannot reschedule from status: ${currentStatus}`);
-      return;
-    }
-    
-    // NO EXISTING REQUEST - CREATE NEW (first time scheduling)
-    else {
-      console.log("🆕 Creating FIRST request (no previous request)");
-      
-      const insertData = {
-        post_id: Number(id),
-        owner_id: viewId,
-        location: meetupPlace,
-        meet_date: localDateString,
-        meet_time: localTimeString,
-        status: "pending",
-        last_modified_by: viewId,
-      };
-
-      const { data, error } = await supabase
-        .from("schedule_requests")
-        .insert(insertData)
-        .select();
-
-      if (error) {
-        Alert.alert("Error", `Failed to create request: ${error.message}`);
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        Alert.alert("Error", "Failed to create the request. Please try again.");
-        return;
-      }
-
-      Alert.alert("Success", "Request Sent!");
-      setRescheduleMeeting(false);
-      await fetchScheduleRequest();
+    } catch (error) {
+      console.error('❌ Unexpected error in submitToDatabase:', error);
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
     }
   };
 
