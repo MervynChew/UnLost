@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from "../../constants/theme";
 import { supabase } from '../../lib/supabase';
 
+
 type ConfirmationProps = {
   scheduleRequestId: number;
   postId: number;
@@ -12,7 +13,8 @@ type ConfirmationProps = {
   onFailure: () => void; // Callback when claim fails
 }
 
-export default function Confirmation({ 
+
+export default function Confirmation({
   scheduleRequestId,
   postId,
   isPostOwner,
@@ -21,10 +23,12 @@ export default function Confirmation({
 }: ConfirmationProps) {
   const [isUpdating, setIsUpdating] = useState(false);
 
+
   // Only show this section to the requester (not post owner)
   if (isPostOwner) {
     return null;
   }
+
 
   const handleSuccess = () => {
     Alert.alert(
@@ -40,16 +44,16 @@ export default function Confirmation({
           style: "default",
           onPress: async () => {
             setIsUpdating(true);
-            
+           
             try {
-              // Update schedule_request to 'completed' status
+              // ✅ Step 1: Update schedule_request to 'completed' status
               const { error: scheduleError } = await supabase
                 .from('schedule_requests')
-                .update({ 
-                  status: 'completed',
-                  completed_at: new Date().toISOString()
+                .update({
+                  status: 'completed'
                 })
                 .eq('request_id', scheduleRequestId);
+
 
               if (scheduleError) {
                 console.error('❌ Error updating schedule:', scheduleError);
@@ -58,11 +62,18 @@ export default function Confirmation({
                 return;
               }
 
-              // Update post status to 'completed'
+              console.log('✅ Schedule request marked as completed');
+
+
+              // ✅ Step 2: Update posts status to 'claimed' and set claim_date
               const { error: postError } = await supabase
                 .from('posts')
-                .update({ status: 'completed' })
+                .update({ 
+                  status: 'claimed',
+                  claim_date: new Date().toISOString()
+                })
                 .eq('post_id', postId);
+
 
               if (postError) {
                 console.error('❌ Error updating post:', postError);
@@ -71,13 +82,14 @@ export default function Confirmation({
                 return;
               }
 
-              console.log('✅ Item successfully claimed - status set to completed');
+
+              console.log('✅ Post status updated to claimed with claim_date');
               Alert.alert(
-                'Success!', 
+                'Success!',
                 'Great! The item has been marked as successfully claimed.',
                 [{ text: 'OK', onPress: onSuccess }]
               );
-              
+             
             } catch (err) {
               console.error('❌ Unexpected error:', err);
               Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -89,6 +101,7 @@ export default function Confirmation({
       ]
     );
   };
+
 
   const handleFailure = () => {
     Alert.alert(
@@ -104,15 +117,16 @@ export default function Confirmation({
           style: "destructive",
           onPress: async () => {
             setIsUpdating(true);
-            
+           
             try {
               // Update schedule_request to 'failed' status
               const { error } = await supabase
                 .from('schedule_requests')
-                .update({ 
+                .update({
                   status: 'failed'
                 })
                 .eq('request_id', scheduleRequestId);
+
 
               if (error) {
                 console.error('❌ Error updating status:', error);
@@ -121,13 +135,14 @@ export default function Confirmation({
                 return;
               }
 
+
               console.log('✅ Meeting marked as failed');
               Alert.alert(
-                'Meeting Failed', 
+                'Meeting Failed',
                 'The meeting has been marked as unsuccessful. You can now reschedule a new meeting.',
                 [{ text: 'OK', onPress: onFailure }]
               );
-              
+             
             } catch (err) {
               console.error('❌ Unexpected error:', err);
               Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -140,25 +155,28 @@ export default function Confirmation({
     );
   };
 
+
   return (
     <View style={styles.cardContainer}>
       <View style={styles.headerRow}>
-        <Ionicons 
-          name="ribbon-outline" 
-          size={28} 
-          color={Colors.light.purple} 
+        <Ionicons
+          name="ribbon-outline"
+          size={28}
+          color={Colors.light.purple}
         />
         <Text style={styles.headerTitle}>Item Retrieval Confirmation</Text>
       </View>
+
 
       <Text style={styles.subtitle}>
         Please confirm whether you have successfully received your item from the finder.
       </Text>
 
+
       <View style={styles.buttonContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
-            styles.button, 
+            styles.button,
             styles.successButton,
             isUpdating && styles.buttonDisabled
           ]}
@@ -171,9 +189,10 @@ export default function Confirmation({
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[
-            styles.button, 
+            styles.button,
             styles.failureButton,
             isUpdating && styles.buttonDisabled
           ]}
@@ -187,6 +206,7 @@ export default function Confirmation({
         </TouchableOpacity>
       </View>
 
+
       <View style={styles.warningBox}>
         <Ionicons name="warning-outline" size={20} color={Colors.light.orange} />
         <Text style={styles.warningText}>
@@ -196,6 +216,7 @@ export default function Confirmation({
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   cardContainer: {

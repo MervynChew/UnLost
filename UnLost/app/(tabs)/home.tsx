@@ -1,17 +1,22 @@
 import { Image } from "expo-image";
-import { Platform, StyleSheet, View, FlatList, ScrollView} from "react-native";
+import { Platform, StyleSheet, View, FlatList, ScrollView, Modal} from "react-native";
 import { useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import SearchBar from "../../components/Main page/searchBar";
 
 import Welcome from "../../components/Main page/Welcome";
 import Profile from "@/components/Main page/Profile";
 import Post from "@/components/Main page/Post"
+import PostDetails from "@/components/Main page/PostDetails";
 import { supabase } from "../../lib/supabase"; // Adjust
 
 export default function HomeScreen() {
+  const params = useLocalSearchParams();
+  const router = useRouter();
   const [username, setUsername] = useState('User');
   const [posts, setPosts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState(''); // <--- State for search text
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
 
   const getProfile = async() => {
 
@@ -63,6 +68,18 @@ export default function HomeScreen() {
     }
   };
 
+  // handle notification navigation, auto-open modal
+  useEffect(() => {
+    if (params.openPost) {
+      const postId = Number(params.openPost);
+      console.log('📬 Opening post from notification:', postId);
+      setSelectedPostId(postId);
+      
+      // Clear the parameter after opening
+      router.replace('/(tabs)/home');
+    }
+  }, [params.openPost]);
+
   useEffect(() => {
     getProfile();
     fetchPosts();
@@ -75,8 +92,14 @@ export default function HomeScreen() {
       <FlatList
         data={posts}
         keyExtractor={(item) => item.post_id.toString()}
-        renderItem={({ item }) => <Post post={item} />}
-
+        renderItem={({ item }) => (
+          <Post 
+            post={item}
+            // ⭐ Pass auto-open prop if this is the post from notification
+            autoOpen={item.post_id === selectedPostId}
+            onAutoOpenComplete={() => setSelectedPostId(null)}
+          />
+        )}
         // 1. ENABLE GRID MODE
         numColumns={2} 
         
@@ -104,6 +127,21 @@ export default function HomeScreen() {
         // 2. Add some padding so the list isn't stuck to the edges
         contentContainerStyle={{ paddingBottom: 20 }}
       />
+
+      {/* Fallback modal if post not found in list yet */}
+      {selectedPostId !== null && !posts.find(p => p.post_id === selectedPostId) && (
+        <Modal
+          visible={true}
+          animationType="fade"
+          statusBarTranslucent={true}
+        >
+          <PostDetails 
+            propId={selectedPostId} 
+            onClose={() => setSelectedPostId(null)} 
+          />
+        </Modal>
+      )}
+
     </View>
   );
 }

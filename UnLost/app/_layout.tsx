@@ -4,6 +4,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added for cleanup
 import { supabase } from '../lib/supabase';
+import { registerForPushNotificationsAsync, setupNotificationListeners } from '../lib/notificationService';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -43,6 +44,14 @@ export default function RootLayout() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // ✅ Setup notification listeners
+  useEffect(() => {
+    if (session) {
+      const cleanup = setupNotificationListeners(router);
+      return cleanup;
+    }
+  }, [session, router]);
 
   useEffect(() => {
     // Wait until we have checked the initial session
