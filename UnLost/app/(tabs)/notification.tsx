@@ -25,7 +25,7 @@ interface Notification {
   action_type: string;
   action_data: any;
   post_id?: number;
-  deleted: boolean; // ⭐ Added deleted field
+  deleted: boolean; 
 }
 
 export default function NotificationsPage() {
@@ -71,7 +71,7 @@ export default function NotificationsPage() {
         .from('notifications')
         .select('*')
         .eq('user_id', userId)
-        .eq('deleted', false) // ⭐ Only fetch non-deleted notifications
+        .eq('deleted', false) // only fetch non-deleted notifications
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -179,7 +179,6 @@ export default function NotificationsPage() {
     }
   };
 
-  // ⭐ SOFT DELETE - Update deleted column instead of deleting row
   const deleteNotification = async (notificationId: number) => {
     Alert.alert(
       'Delete Notification',
@@ -239,7 +238,7 @@ export default function NotificationsPage() {
         .update({ read: true })
         .eq('user_id', userId)
         .eq('read', false)
-        .eq('deleted', false); // ⭐ Only mark non-deleted as read
+        .eq('deleted', false); 
 
       if (error) {
         Alert.alert('Error', 'Failed to mark all as read');
@@ -250,6 +249,67 @@ export default function NotificationsPage() {
     } catch (error) {
       console.error('Error:', error);
     }
+  };
+
+  // clear all notification if it is read(actually just set the boolean as true, not really delete from database)
+  const clearAllRead = async () => {
+    const readNotifications = notifications.filter((n) => n.read);
+    
+    if (readNotifications.length === 0) { // fall back if the button is exists
+      Alert.alert('No Read Notifications', 'There are no read notifications to clear.');
+      return;
+    }
+
+    Alert.alert(
+      'Clear All Read',
+      `Are you sure you want to clear ${readNotifications.length} read notification${readNotifications.length > 1 ? 's' : ''}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🗑️ Clearing all read notifications');
+              
+              // Optimistically remove read notifications from UI
+              setNotifications((prev) => prev.filter((n) => !n.read));
+              
+              // Get all read notification IDs
+              const readNotificationIds = readNotifications.map((n) => n.notification_id);
+              
+              // Call Edge Function to update the boolean of all read notifications
+              const response = await fetch(
+                `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/soft-delete-notification`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    notificationIds: readNotificationIds, // Pass array of IDs
+                    userId
+                  }),
+                }
+              );
+
+              const result = await response.json();
+
+              if (!result.success) {
+                throw new Error(result.error);
+              }
+
+              console.log('✅ All read notifications cleared successfully');
+            } catch (error) {
+              console.error('Error clearing notifications:', error);
+              Alert.alert('Error', 'Failed to clear notifications');
+              fetchNotifications(); // Revert on error
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getIconName = (type: string): any => {
@@ -359,16 +419,25 @@ export default function NotificationsPage() {
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const readCount = notifications.filter((n) => n.read).length;
 
   return (
     <View style={styles.container}>
       <Header title="Notifications" subtitle="Stay updated with your meetings" />
 
-      {unreadCount > 0 && (
-        <TouchableOpacity style={styles.markAllButton} onPress={markAllAsRead}>
-          <Text style={styles.markAllText}>Mark all as read ({unreadCount})</Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.actionsContainer}>
+        {unreadCount > 0 && (
+          <TouchableOpacity style={styles.markAllButton} onPress={markAllAsRead}>
+            <Text style={styles.markAllText}>Mark all as read ({unreadCount})</Text>
+          </TouchableOpacity>
+        )}
+        
+        {readCount > 0 && (
+          <TouchableOpacity style={styles.clearAllButton} onPress={clearAllRead}>
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -379,7 +448,7 @@ export default function NotificationsPage() {
           />
           <Text style={styles.emptyText}>No notifications yet</Text>
           <Text style={styles.emptySubtext}>
-            You'll be notified about meeting requests and updates
+            You will be notified about meeting requests and updates
           </Text>
         </View>
       ) : (
@@ -405,6 +474,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.white,
+    paddingBottom: 90,
   },
   centerContainer: {
     flex: 1,
@@ -475,6 +545,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: Colors.light.purple,
   },
+  actionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingTop: 15,
+  },
   markAllButton: {
     backgroundColor: Colors.light.purple,
     padding: 12,
@@ -484,6 +561,16 @@ const styles = StyleSheet.create({
   },
   markAllText: {
     color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  clearAllButton: {
+    marginLeft: 'auto',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  clearAllText: {
+    color: Colors.light.purple,
     fontSize: 14,
     fontWeight: '600',
   },
