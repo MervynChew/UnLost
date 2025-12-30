@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, View, StyleSheet } from 'react-native'
+import { Text, View, StyleSheet } from 'react-native';
+import { Colors } from "../../constants/theme";
 
 type WelcomePerson = {
   name: string;
@@ -8,7 +9,7 @@ type WelcomePerson = {
 export default function Welcome({name}: WelcomePerson) {
   return (
     <View style={styles.container}>
-      <Text style={styles.welcome}>Hi! welcome,</Text>
+      <Text style={styles.welcome}>Hi! Welcome,</Text>
       <Text style={styles.user}>{name}</Text>
     </View>
   )
@@ -17,13 +18,16 @@ export default function Welcome({name}: WelcomePerson) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'column',
-    top: '7%',
-    left: '8%',
+    justifyContent: 'center',
   },
   welcome: {
-    fontSize: 28,
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: Colors.light.purple,
   },
   user: {
-    fontSize: 22,
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: Colors.light.orange,
   },
 })

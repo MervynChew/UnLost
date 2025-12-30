@@ -10,6 +10,7 @@ type PostProps = {
     post_image: string;
     tags: string[];
     description?: string; 
+    status?: string;
   };
   autoOpen?: boolean; //  Auto-open the specific post's modal
   onAutoOpenComplete?: () => void; // Callback when auto-open is done
@@ -37,12 +38,32 @@ const cardWidth = (screenWidth - (screenPadding * 2) - gap) / numColumns;
 export default function Post({ post, autoOpen, onAutoOpenComplete }: PostProps) {
 
   const [modalVisible, setModalVisible] = useState(false);
+  const router = useRouter();
 
   // 1. Generate a list of random colors, one for EACH tag
   // We do this here so the colors don't change every time you scroll
   const tagColors = useMemo(() => {
     return post.tags ? post.tags.map(() => getRandomThemeColor()) : [];
   }, [post.post_id, post.tags]);
+
+  // 2. Determine text and color of status of post based on post status
+  const statusChip = useMemo(() => {
+    const status = post.status?.toLowerCase() || '';
+    
+    if (status === 'lost') {
+      return {
+        text: 'Unclaimed',
+        backgroundColor: '#FF6B6B', // Red for lost
+        color: '#FFFFFF'
+      };
+    } else {
+      return {
+        text: 'Claimed',
+        backgroundColor: '#4CAF50', // Green for claimed/found
+        color: '#FFFFFF'
+      };
+    }
+  }, [post.status]);
 
   // ⭐ Auto-open modal if autoOpen prop is true
   useEffect(() => {
@@ -59,6 +80,18 @@ return (
       {/* 1. THE CARD CONTAINER (Changed from TouchableOpacity to View) */}
       <View style={styles.postContainer}>
         
+        {/* Post Status at Top Right of each post */}
+        <View style={styles.statusChipContainer}>
+          <View style={[
+            styles.statusChip, 
+            { backgroundColor: statusChip.backgroundColor }
+          ]}>
+            <Text style={[styles.statusText, { color: statusChip.color }]}>
+              {statusChip.text}
+            </Text>
+          </View>
+        </View>
+
         {/* A. CLICKABLE AREA (Image opens the modal) */}
         <TouchableOpacity 
           activeOpacity={0.9} 
@@ -108,7 +141,7 @@ return (
 const styles = StyleSheet.create({
   postContainer: {
     marginBottom: 20,
-    backgroundColor: '#fff', // <--- Back to White
+    backgroundColor: '#ffffffff', // <--- Back to White
     borderRadius: 15,
     overflow: 'hidden', 
     flex: 1,
@@ -126,12 +159,14 @@ const styles = StyleSheet.create({
   },
   postTags: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',    // Vertically center the badges
+    // flexWrap: 'wrap',
     padding: 10,
     gap: 8,
 
-    height: 74,        // 1. Set fixed height (approx 2 rows + gaps)
-    overflow: 'hidden', // 2. Hide any tags that fall outside this height
+    // height: 74,        // 1. Set fixed height (approx 2 rows + gaps)
+    // overflow: 'hidden', // 2. Hide any tags that fall outside this height
+    // Comment out the above 3 lines in postTags to ensure tags list only store tags in one row
   },
   tagBadge: {
     // backgroundColor: ... (Removed static color, handled inline above)
@@ -143,5 +178,27 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#000', // Black text usually looks best on pastel tags
+  },
+  statusChipContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10, // Ensur status is above the post image
+  },
+  statusChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#FF6B6B',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   }
 });
