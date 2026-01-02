@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { Platform, StyleSheet, View, StatusBar, FlatList, Modal, Animated, Text} from "react-native";
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import ProfileScreen from '../../app/profile'; 
@@ -30,6 +30,10 @@ export default function HomeScreen() {
 
   // In home.tsx, add this state and modal
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+
+  // Track Recent Filter States
+  const searchTagsRef = useRef(searchTags);
+  const statusFilterRef = useRef(statusFilter);
 
   // Fetch User Profile
   const getProfile = async() => {
@@ -120,6 +124,15 @@ export default function HomeScreen() {
     }
   }, [params.openPost]);
 
+  // Update refs when state changes
+  useEffect(() => {
+    searchTagsRef.current = searchTags;
+  }, [searchTags]);
+
+  useEffect(() => {
+    statusFilterRef.current = statusFilter;
+  }, [statusFilter]);
+
   useEffect(() => {
     getProfile();
     fetchPosts();
@@ -136,9 +149,53 @@ export default function HomeScreen() {
         schema: 'public', 
         table: 'posts' 
       }, 
-      (payload) => {
+      async (payload) => {
         console.log('✨ Post Changes detected in real-time!', payload);
-        fetchPosts();      // Refresh the list immediately
+        try {
+          // Use refs to get current filter values
+          const currentSearchTags = searchTagsRef.current;
+          const currentStatusFilter = statusFilterRef.current;
+          
+          let query = supabase
+            .from('posts')
+            .select('*, profiles(id, full_name, profile_picture)')
+            .eq('sensitive', false)
+            .order('created_at', { ascending: false });
+
+          // Apply current status filter
+          if (currentStatusFilter === 'Unclaimed') {
+            query = query.eq('status', 'lost');
+          } else if (currentStatusFilter === 'Claimed') {
+            query = query.eq('status', 'claimed');
+          } else {
+            query = query.in('status', ['lost', 'claimed']);
+          }
+
+          const { data, error } = await query;
+
+          if (error) {
+            console.log('Error fetching posts:', error);
+            return;
+          }
+
+          // Apply current tag filter
+          let finalDisplayData = data || [];
+          if (currentSearchTags.length > 0) {
+            finalDisplayData = finalDisplayData.filter(post => 
+              post.tags?.some((postTag: string) => 
+                currentSearchTags.some(searchTag => 
+                  postTag.toLowerCase().includes(searchTag.toLowerCase())
+                )
+              )
+            );
+          }
+
+          // Update State
+          setPosts(finalDisplayData);
+          console.log(`🔄 Real-time update: ${finalDisplayData.length} posts (Filter: ${currentStatusFilter})`);
+        } catch (err) {
+          console.log('Error in real-time fetch:', err);
+        }
       }
     )
     .subscribe();
@@ -146,7 +203,7 @@ export default function HomeScreen() {
   // Clean up the subscription when the user leaves the page
   return () => {
     supabase.removeChannel(postSubscription);
-  }; }, []); // Runs once on mount
+  }; }, []);
 
   // Safe area constant
   const SAFE_TOP = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 47;

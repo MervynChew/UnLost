@@ -474,7 +474,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.white,
-    paddingBottom: 90,
   },
   centerContainer: {
     flex: 1,
@@ -483,6 +482,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 15,
+    paddingBottom: 100,
   },
   notificationCard: {
     flexDirection: 'row',
