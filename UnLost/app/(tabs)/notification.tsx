@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import Header from '../../components/General/header';
 import { Colors } from '../../constants/theme';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 interface Notification {
   notification_id: number;
@@ -34,6 +35,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string>('');
+  const { setUnreadCount } = useNotifications();
 
   useEffect(() => {
     getCurrentUser();
@@ -81,6 +83,10 @@ export default function NotificationsPage() {
 
       console.log('✅ Fetched', data?.length, 'notifications');
       setNotifications(data || []);
+
+      // Update unread count
+      const unread = data?.filter(n => !n.read).length || 0;
+      setUnreadCount(unread);
     } catch (error) {
       console.error('Error:', error);
     } finally {
