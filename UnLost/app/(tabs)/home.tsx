@@ -1,7 +1,9 @@
 import { Image } from "expo-image";
-import { Platform, StyleSheet, View, StatusBar, FlatList, Modal, Animated} from "react-native";
+import { Platform, StyleSheet, View, StatusBar, FlatList, Modal, Animated, Text} from "react-native";
 import { useEffect, useState, useRef } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import ProfileScreen from '../../app/profile'; 
 import SearchBar from "../../components/Main page/searchBar";
 
 import Welcome from "../../components/Main page/Welcome";
@@ -10,20 +12,14 @@ import Post from "@/components/Main page/Post"
 import PostDetails from "@/components/Main page/PostDetails";
 import { supabase } from "../../lib/supabase"; // Adjust
 
-let cachedPosts: any[] = [];
-let cachedUsername = 'User';
-let cachedSearchTags: string[] = [];
-let cachedStatusFilter = 'All Items';
-
 export default function HomeScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
-  const [username, setUsername] = useState(cachedUsername);
-  const [posts, setPosts] = useState<any[]>(cachedPosts);
-  const [searchTags, setSearchTags] = useState<string[]>(cachedSearchTags);    // Search tags state
-  const [statusFilter, setStatusFilter] = useState(cachedStatusFilter); // Status filter state
+  const [username, setUsername] = useState('User');
+  const [posts, setPosts] = useState<any[]>([]);
+  const [searchTags, setSearchTags] = useState<string[]>([]);    // Search tags state
+  const [statusFilter, setStatusFilter] = useState('All Items'); // Status filter state
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
-  const isInitialMount = useRef(true);
 
   // Animation State
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -31,6 +27,9 @@ export default function HomeScreen() {
 
   // Track the exact height of the search bar (including tags)
   const [searchBarHeight, setSearchBarHeight] = useState(60);
+
+  // In home.tsx, add this state and modal
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
 
   // Fetch User Profile
   const getProfile = async() => {
@@ -50,8 +49,7 @@ export default function HomeScreen() {
       console.log("Error fetching profile:", error);
     } else if (data) {
       // Use 'full_name' because that is what you selected above
-      setUsername(data.full_name); 
-      cachedUsername = data.full_name; // Update the cache
+      setUsername(data.full_name);
     }
   };
   
@@ -74,7 +72,10 @@ export default function HomeScreen() {
         query = query.eq('status', 'lost'); // Status 'lost' from post status in supabase
       } else if (statusFilter === 'Claimed') {
         query = query.eq('status', 'claimed'); // Status 'claimed' from post status in supabase
-      }
+      } else {
+      // For 'All Items', show only 'lost' and 'claimed' posts from supabase
+      query = query.in('status', ['lost', 'claimed']);
+    }
 
       const { data, error } = await query;
 
@@ -102,8 +103,6 @@ export default function HomeScreen() {
 
       // Update State and Cache
       setPosts(finalDisplayData);
-      cachedPosts = finalDisplayData; // Save this so the back button can find it
-      
     } catch (err) {
       console.log('Error in fetchPosts:', err);
     }
@@ -122,25 +121,8 @@ export default function HomeScreen() {
   }, [params.openPost]);
 
   useEffect(() => {
-    // 1. Detect if the user actually changed a filter or if the list is empty
-    const hasFilterChanged = 
-      JSON.stringify(searchTags) !== JSON.stringify(cachedSearchTags) || 
-      statusFilter !== cachedStatusFilter;
-
-    const isFirstLoadEver = cachedPosts.length === 0;
-
-    if (hasFilterChanged || isFirstLoadEver) {
-      console.log("Fetching: Filter changed or first load");
-      
-      getProfile();
-      fetchPosts();
-
-      // 2. Update the cache so we remember this state for next time
-      cachedSearchTags = [...searchTags];
-      cachedStatusFilter = statusFilter;
-    } else {
-      console.log("Skipping fetch: Returning from Profile with same state");
-    }
+    getProfile();
+    fetchPosts();
   }, [searchTags, statusFilter]); // Refetch when tags or status change
 
   useEffect(() => {
@@ -150,12 +132,12 @@ export default function HomeScreen() {
     .on(
       'postgres_changes', 
       { 
-        event: 'INSERT',   // Listen only for new posts (if yes the post list will refresh with the new post in it)
+        event: '*',    // Listen to new posts, post status updates, and post deletions
         schema: 'public', 
         table: 'posts' 
       }, 
       (payload) => {
-        console.log('✨ New post detected in real-time!', payload);
+        console.log('✨ Post Changes detected in real-time!', payload);
         fetchPosts();      // Refresh the list immediately
       }
     )
@@ -207,7 +189,7 @@ const WELCOME_ROW_HEIGHT = 150; // Welcome Row Height
         }
       ]}>
         <Welcome name={username} />
-        <Profile />
+        <Profile onPress={() => setProfileModalVisible(true)} />
       </Animated.View>
 
       {/* White Shield: Covers the gap caused by immersive status bar, to hide posts when they are above search bar */}
@@ -240,6 +222,17 @@ const WELCOME_ROW_HEIGHT = 150; // Welcome Row Height
         data={posts}
         keyExtractor={(item) => item.post_id.toString()}
 
+        // When no posts found
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons 
+              name="newspaper-outline" 
+              size={100} 
+              color="#ccc" 
+            />
+            <Text style={styles.emptyText}>No posts found</Text>
+          </View>
+        }
         // Connect Scroll Animation
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -281,6 +274,16 @@ const WELCOME_ROW_HEIGHT = 150; // Welcome Row Height
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Profile Modal - Opens profile in immersive mode without refreshing home */}
+      <Modal
+        visible={profileModalVisible}
+        animationType="slide"
+        onRequestClose={() => setProfileModalVisible(false)}
+        statusBarTranslucent={true}
+      >
+        <ProfileScreen onClose={() => setProfileModalVisible(false)} />
+      </Modal>
 
       {/* Fallback modal if post not found in list yet */}
       {selectedPostId !== null && !posts.find(p => p.post_id === selectedPostId) && (
@@ -331,5 +334,18 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 100, // Prevent last post from being covered by the navigation bar
+  },
+  // Styles when post list is empty
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 100, // Adjust this value to position it properly below the search bar
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 20,
+    fontWeight: '500',
+    color: '#000000ff',
   },
 });

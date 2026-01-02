@@ -56,11 +56,18 @@ export default function Post({ post, autoOpen, onAutoOpenComplete }: PostProps) 
         backgroundColor: '#FF6B6B', // Red for lost
         color: '#FFFFFF'
       };
-    } else {
+    } else if (status === 'claimed') {
       return {
         text: 'Claimed',
-        backgroundColor: '#4CAF50', // Green for claimed/found
+        backgroundColor: '#4CAF50', // Green for claimed
         color: '#FFFFFF'
+      };
+    } else {
+      // Fallback for any other status, pending in this case
+      return {
+        text: status.charAt(0).toUpperCase() + status.slice(1), // Capitalize
+        backgroundColor: '#a0a9b1ff', // Pending Color
+        color: '#000000ff'
       };
     }
   }, [post.status]);

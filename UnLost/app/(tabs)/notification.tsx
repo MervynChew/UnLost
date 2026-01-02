@@ -428,7 +428,7 @@ export default function NotificationsPage() {
       <View style={styles.actionsContainer}>
         {unreadCount > 0 && (
           <TouchableOpacity style={styles.markAllButton} onPress={markAllAsRead}>
-            <Text style={styles.markAllText}>Mark all as read ({unreadCount})</Text>
+            <Text style={styles.markAllText}>Mark All As Read ({unreadCount})</Text>
           </TouchableOpacity>
         )}
         
@@ -549,8 +549,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingTop: 15,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    marginRight: 10,
   },
   markAllButton: {
     backgroundColor: Colors.light.purple,
@@ -560,6 +561,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   markAllText: {
+    paddingHorizontal: 10,
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',

@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Button,
+  ScrollView
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useRouter } from 'expo-router';
@@ -16,11 +17,23 @@ import BackButton from '../components/General/backButton';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 
-export default function ProfileScreen() {
+type Props = {
+  onClose?: () => void;
+};
+
+export default function ProfileScreen({ onClose }: Props) {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
+
+  const handleBack = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      router.back();
+    }
+  };
 
   /* ================= FETCH PROFILE IMAGE ================= */
   const getProfileImage = async () => {
@@ -98,66 +111,83 @@ export default function ProfileScreen() {
 
   /* ================= UI ================= */
   return (
-    <View style={styles.container}>
-      <BackButton onPress={() => router.back()} />
+    <View style={styles.mainContainer}>
+      <ScrollView 
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Text style={styles.title}>My Profile</Text>
 
-      <Text style={styles.title}>My Profile</Text>
-
-      <Button
-        title="Sign Out"
-        onPress={async () => {
-          try {
-            await supabase.auth.signOut();
-            // redirect to login/root page immediately
-            router.replace('/'); 
-          } catch (error) {
-            console.log(error);
-            Alert.alert('Error', 'Failed to sign out.');
-          }
-        }}
-      />
-
-      <TouchableOpacity onPress={uploadAvatar} disabled={loading}>
-        {loading ? (
-          <View style={[styles.avatar, styles.loading]}>
-            <ActivityIndicator />
-          </View>
-        ) : (
-          <Image
-            source={
-              image
-                ? { uri: image }
-                : require('../assets/image/Profile/default_profile.avif')
+        <Button
+          title="Sign Out"
+          onPress={async () => {
+            try {
+              await supabase.auth.signOut();
+              // redirect to login/root page immediately
+              router.replace('/'); 
+            } catch (error) {
+              console.log(error);
+              Alert.alert('Error', 'Failed to sign out.');
             }
-            style={styles.avatar}
-          />
-        )}
-        <View style={styles.editBadge} />
-      </TouchableOpacity>
+          }}
+        />
+
+        <TouchableOpacity onPress={uploadAvatar} disabled={loading}>
+          {loading ? (
+            <View style={[styles.avatar, styles.loading]}>
+              <ActivityIndicator />
+            </View>
+          ) : (
+            <Image
+              source={
+                image
+                  ? { uri: image }
+                  : require('../assets/image/Profile/default_profile.avif')
+              }
+              style={styles.avatar}
+            />
+          )}
+          <View style={styles.editBadge} />
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Fixed Back Button at bottom left - Same as PostDetails */}
+      <View style={styles.fixedFooter}>
+        <BackButton onPress={handleBack} />
+      </View>
     </View>
   );
 }
 
 /* ================= STYLES ================= */
 const styles = StyleSheet.create({
-  container: {
+mainContainer: {
     flex: 1,
-    alignItems: 'center',
-    paddingTop: 40,
     backgroundColor: '#fff',
   },
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 100, // Space for fixed footer
+  },
   title: {
-    fontSize: 20,
-    marginVertical: 20,
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginVertical: 30,
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 2,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 3,
     borderColor: '#ccc',
     backgroundColor: '#f0f0f0',
-    marginTop: 20,
+    marginTop: 30,
+    marginBottom: 20,
   },
   loading: {
     justifyContent: 'center',
@@ -165,13 +195,22 @@ const styles = StyleSheet.create({
   },
   editBadge: {
     position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    bottom: 25,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#007AFF',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fixedFooter: {
+    position: "absolute",
+    bottom: '-7%',
+    left: "18%",
+    backgroundColor: 'transparent',
+    zIndex: 100,
   },
 });
