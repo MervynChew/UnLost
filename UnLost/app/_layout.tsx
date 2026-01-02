@@ -5,6 +5,7 @@ import { Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added for cleanup
 import { supabase } from '../lib/supabase';
 import { registerForPushNotificationsAsync, setupNotificationListeners } from '../lib/notificationService';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -84,5 +85,9 @@ export default function RootLayout() {
     );
   }
 
-  return <Slot />;
+  return (
+    <NotificationProvider>
+      <Slot />
+    </NotificationProvider>
+  );
 }

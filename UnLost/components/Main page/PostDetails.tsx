@@ -242,7 +242,7 @@ export default function PostDetails({ propId, onClose }: Props) {
       scheduleRequest?.status === "accepted" &&
       scheduleRequest?.finder_attendance && 
       scheduleRequest?.owner_attendance &&
-      !isPostOwner;
+      isRequester;
 
     const shouldShowClaimedBy = 
       isItemCompleted && 
@@ -1001,6 +1001,7 @@ export default function PostDetails({ propId, onClose }: Props) {
     
     // Show Attendance Tracking if meeting is accepted or failed
     if (
+      !isItemCompleted &&  // ⭐ ADD: Don't show when completed
       hasScheduleRequest && 
       (scheduleRequest?.status === "accepted" || scheduleRequest?.status === "failed") &&
       (isPostOwner || isRequester)
@@ -1015,7 +1016,7 @@ export default function PostDetails({ propId, onClose }: Props) {
       scheduleRequest?.status === "accepted" &&
       scheduleRequest?.finder_attendance && 
       scheduleRequest?.owner_attendance &&
-      !isPostOwner
+      isRequester
     ) {
       sections.push('Item Retrieval');
     }
@@ -1835,7 +1836,7 @@ export default function PostDetails({ propId, onClose }: Props) {
           scheduleRequest?.status === "accepted" &&
           scheduleRequest?.finder_attendance && 
           scheduleRequest?.owner_attendance &&
-          !isPostOwner && (
+          isRequester  && (
           <View 
             style={styles.sectionView}
             ref={(el) => { sectionRefs.current["Item Retrieval"] = el; }}
