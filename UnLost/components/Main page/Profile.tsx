@@ -1,14 +1,15 @@
 import React from 'react';
 import { Pressable, Image, StyleSheet } from 'react-native';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-export default function Profile() {
+type ProfileProps = {
+  onPress: () => void;
+};
 
-  const [image, setImage] = useState(null);
+export default function Profile({ onPress }: ProfileProps) {
+  const [image, setImage] = useState<string | null>(null);
   const fallBackImage = require('../../assets/image/Profile/default_profile.avif');
-  const router = useRouter(); // <-- For navigating to profile page
 
   const getProfileImage = async() => {
     const {data: { session }} = await supabase.auth.getSession();
@@ -18,9 +19,8 @@ export default function Profile() {
       .from('profiles')
       .select('profile_picture')
       .eq('id', session.user.id)
-      .single(); // .single() gives you one object instead of an array
+      .single();
 
-    // 3. Handle the result INSIDE the function (where 'data' exists)
     if (error) {
       console.log("Error fetching profile:", error);
     } else if (data && data.profile_picture) {
@@ -33,10 +33,11 @@ export default function Profile() {
   }, []);
 
   return (
-    <Pressable onPress={() => router.push('/profile')}>
+    <Pressable onPress={onPress}>
       <Image 
         source={image ? { uri: image } : fallBackImage} 
-        style={styles.avatar}/>
+        style={styles.avatar}
+      />
     </Pressable>
   );
 }
@@ -50,10 +51,10 @@ const styles = StyleSheet.create({
   avatar: {
     width: 50,
     height: 50,
-    borderRadius: 75, // Makes it a perfect circle
+    borderRadius: 75,
     borderWidth: 2,
     borderColor: '#ccc',
-    backgroundColor: '#f0f0f0', // Grey background while loading
+    backgroundColor: '#f0f0f0',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
