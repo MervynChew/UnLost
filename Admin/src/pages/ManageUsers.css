@@ -298,6 +298,31 @@
     flex-shrink: 0;
     margin-left: 4px;
 }
+.scrollable-history {
+    max-height: 320px; /* Adjust this value so only 2 cards fit perfectly */
+    overflow-y: auto;  /* Enables vertical scrolling */
+    padding-right: 10px; /* Space for the scrollbar so it doesn't overlap cards */
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.scrollable-history::-webkit-scrollbar {
+    width: 6px;
+}
+.scrollable-history::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+.scrollable-history::-webkit-scrollbar-thumb {
+    background: #c1c1c1; 
+    border-radius: 10px;
+}
+.scrollable-history::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+.histroy-block {
+    margin-bottom: 30px;
+}
 
 .grid-item {
     display: flex;
@@ -445,4 +470,47 @@
     background: rgba(0,0,0,0.7);
     padding: 20px 40px;
     border-radius: 50px;
+}
+
+/* Pagination Styling */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin: 40px 0;
+}
+.page-num {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #888;
+    cursor: pointer;
+    padding: 5px 10px;
+    position: relative;
+}
+.page-num.active {
+    color: #333;
+    font-weight: bold;
+}
+.pager-btn {
+    background: #f5f5f5;
+    border: none;
+    border-radius: 8px;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #666;
+    transition: 0.2s;
+}
+.pager-btn:hover:not(:disabled) {
+    background: #8b6ba8;
+    color: white;
+}
+.pager-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
 }

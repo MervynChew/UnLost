@@ -244,7 +244,7 @@
 /* Left Column Styling */
 .modal-hero-img {
     width: 100%;
-    height: 320px;
+    height: 310px;
     object-fit: cover;
     border-radius: 12px;
 }
@@ -269,18 +269,20 @@
     padding: 15px;
     border-radius: 12px;
 }
-.mock-map-view {
-    height: 80px;
-    background: #eee;
-    border-radius: 8px;
+.map-container {
+    width: 100%;
+    height: 120px; /* Slightly taller than the mock for better visibility */
     margin-top: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #999;
-    font-size: 0.75rem;
-    background-image: radial-gradient(#ccc 1px, transparent 1px);
-    background-size: 15px 15px;
+    border-radius: 12px;
+    overflow: hidden; /* Clips the iframe corners to match the border-radius */
+    border: 1px solid #eee;
+    background-color: #f0f0f0; /* Shows while the map is loading */
+}
+.google-map-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    filter: grayscale(0.2) contrast(1.1); /* Optional: makes the map match a "clean" UI theme */
 }
 
 /* Right Column Styling */

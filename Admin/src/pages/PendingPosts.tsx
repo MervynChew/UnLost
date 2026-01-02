@@ -1,17 +1,20 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './PendingPosts.css';
+import { supabase } from '../supabaseClient';
 
 // Define the Post structure
 interface Post {
-  id: number;
-  user: string;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  description: string;
-  imageUrl: string;
+  post_id: number;
+  user_id: string;
+  profiles?: {
+    full_name: string;
+  };
   tags: string[];
+  missing_location: string;
+  found_date: string;
+  status: string;
+  description: string;
+  post_image: string;
 }
 
 export default function PendingPosts() {
@@ -24,52 +27,53 @@ export default function PendingPosts() {
   const [isProcessing, setIsProcessing] = useState<number | null>(null);    // Stores ID of post being approved
   const [showUndoToast, setShowUndoToast] = useState(false);     // Controls visibility of undo toast
   const lastAction = useRef<{ post: Post; timer: ReturnType<typeof setTimeout> } | null>(null);    // Stores last action for undo
+  const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
 
-  // Mock Data
-  const [pendingPosts, setPendingPosts] = useState<Post[]>([
-    {
-      id: 1,
-      user: 'Abu',
-      title: 'Found Blue Wallet',
-      date: '21/08/2024',
-      time: '2:00 pm',
-      location: 'Library Cafe',
-      description: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry...',
-      imageUrl: 'https://picsum.photos/400/300?random=1',
-      tags: ['Wallet', 'Personal Item', 'Blue', 'Leather']
-    },
-    {
-      id: 2,
-      user: 'Siti',
-      title: 'Lost Sony Headphones',
-      date: '22/08/2024',
-      time: '4:30 pm',
-      location: 'Student Center',
-      description: 'Left my black Sony headphones on a table in the study hall.',
-      imageUrl: 'https://picsum.photos/400/300?random=2',
-      tags: ['Headphones', 'Electronics']
-    },
-  ]);
+  // Fetch Pending Posts from Supabase
+  const fetchPending = async() => {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*, profiles(full_name)')
+      .eq('status', 'pending') // Only fetch unverified posts
+      .order('created_at', { ascending: false });
 
-  // Approve function moves post to All Posts (in real app, would update DB)
+    if (error) console.error(error);
+    else setPendingPosts(data || []);
+  };
+
+  useEffect(() => {
+    fetchPending();
+  }, []);
+
+  // Approve Post: Updates status in Supabase and UI
   const handleApprove = async (post: Post) => {
-    setIsProcessing(post.id);
+    setIsProcessing(post.post_id);
     
-    setTimeout(() => {
-      // Clear existing undo timer if a second post is approved quickly
-      if (lastAction.current?.timer) clearTimeout(lastAction.current.timer);
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({ status: 'lost' }) // Change from pending to lost
+        .eq('post_id', post.post_id);
 
-      // Save the full object for undo
+      if (error) throw error;
+
+      // UI Updates
+      setPendingPosts(prev => prev.filter(p => p.post_id !== post.post_id));
+      setViewingPost(null);
+      setShowUndoToast(true);
+      
+      // Set up the Undo timer (Optional)
       lastAction.current = { 
         post: post, 
         timer: setTimeout(() => setShowUndoToast(false), 5000) 
       };
-
-      setPendingPosts(prev => prev.filter(p => p.id !== post.id));
-      setViewingPost(null);
+    } catch (err) {
+      const error = err as Error;
+      console.error("Approval error:", error.message);
+      alert("Failed to approve post.");
+    } finally {
       setIsProcessing(null);
-      setShowUndoToast(true);
-    }, 800); 
+    }
   };
 
   // Handles both approve and reject actions from the table buttons
@@ -83,32 +87,33 @@ export default function PendingPosts() {
     }
   };
 
-  const undoAction = () => {
-    // 1. Safety Check: If lastAction or post is missing, do nothing (don't crash!)
-    if (!lastAction.current || !lastAction.current.post) {
-      console.warn("Undo failed: No post found in lastAction history.");
-      setShowUndoToast(false);
-      return;
-    }
+  const undoAction = async () => {
+    if (!lastAction.current || !lastAction.current.post) return;
 
-    // 2. Stop the timer that hides the toast
+    const postToRestore = lastAction.current.post;
     clearTimeout(lastAction.current.timer);
 
-    // 3. Extract the post into a local variable so it can't change mid-update
-    const postToRestore = lastAction.current.post;
+    try {
+      // 1. Revert the status in the Database
+      const { error } = await supabase
+        .from('posts')
+        .update({ status: 'pending' })
+        .eq('post_id', postToRestore.post_id);
 
-    // 4. Update state safely
-    setPendingPosts(prev => {
-      // Check if the post is already back in the list to prevent duplicates
-      const isAlreadyThere = prev.some(p => p.id === postToRestore.id);
-      if (isAlreadyThere) return prev;
-      
-      return [postToRestore, ...prev];
-    });
+      if (error) throw error;
 
-    // 5. Clean up
-    setShowUndoToast(false);
-    lastAction.current = null;
+      // 2. Update local UI
+      setPendingPosts(prev => {
+        if (prev.some(p => p.post_id === postToRestore.post_id)) return prev;
+        return [postToRestore, ...prev];
+      });
+
+      setShowUndoToast(false);
+      lastAction.current = null;
+    } catch (err) {
+      console.error("Undo failed on server:", err);
+      alert("Could not undo. The post has already been published.");
+    }
   };
 
   // Reset the rejection state variables
@@ -120,21 +125,29 @@ export default function PendingPosts() {
   };
 
   // Reject function removes post from Pending (in real app, would update DB)
-  const handleRejectConfirm = () => {
-    if (!viewingPost || !rejectCategory) return alert("Please provide a reason for rejection.");
+  const handleRejectConfirm = async () => {
+    if (!viewingPost || !rejectCategory) return;
 
-    // Send the combined reason and details for the email content
-    const fullMessage = `Reason: ${rejectCategory}. \n\nDetails: ${additionalDetails || 'N/A'}`;
+    try {
+      // Option A: Delete the post entirely
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('post_id', viewingPost.post_id);
 
-    // 1. In a real app: Trigger an API call to send Email to user
-    console.log(`Sending email for Post #${viewingPost.id}: ${fullMessage}`);
+      // Option B (Recommended): Update status to 'rejected' 
+      // and store the rejection reason in a new column
 
-    // 2. Remove post from pending list
-    setPendingPosts(prev => prev.filter(p => p.id !== viewingPost.id));
-    
-    // 3. Reset rejection state and close modal
-    resetRejectionState();
-    alert("Post rejected and email notification sent.");
+      if (error) throw error;
+
+      setPendingPosts(prev => prev.filter(p => p.post_id !== viewingPost.post_id));
+      resetRejectionState();
+      alert("Post rejected.");
+    } catch (err) {
+      const error = err as Error;
+      console.error("Approval error:", error.message);
+      alert("Failed to approve post.");
+    }
   };
 
   return (
@@ -159,9 +172,9 @@ export default function PendingPosts() {
             </thead>
             <tbody>
               {pendingPosts.map((post) => (
-                <tr key={post.id}>
-                  <td>#{post.id}</td>
-                  <td>{post.user}</td>
+                <tr key={post.post_id}>
+                  <td>#{post.post_id}</td>
+                  <td>{post.profiles?.full_name || "Unknown"}</td>
                   <td>
                     <div className="tag-pill-container">
                       {post.tags.slice(0, 2).map(tag => (
@@ -170,11 +183,10 @@ export default function PendingPosts() {
                       {post.tags.length > 2 && <span className="tag-more">+{post.tags.length - 2}</span>}
                     </div>
                   </td>
-                  <td>{post.location}</td>
+                  <td>{post.missing_location}</td>
                   <td>
                     <div className="datetime-cell">
-                      <span>{post.date}</span>
-                      <small>{post.time}</small>
+                      <span>{post.found_date}</span>
                     </div>
                   </td>
                   <td className="action-cells">
@@ -184,7 +196,7 @@ export default function PendingPosts() {
                       onClick={() => handleAction(post, 'approve')}
                       disabled={isProcessing !== null}
                     >
-                      {isProcessing === post.id ? "..." : "Approve"}
+                      {isProcessing === post.post_id ? "..." : "Approve"}
                     </button>
                     <button 
                       className="btn-reject" 
@@ -216,13 +228,23 @@ export default function PendingPosts() {
               {/* Left Column: Image & Location */}
               <div className="modal-left-col">
                 <div className="main-image-wrapper">
-                  <img src={viewingPost.imageUrl} alt="Item" className="modal-hero-img" />
+                  <img src={viewingPost.post_image} alt="Item" className="modal-hero-img" />
                   <div className="image-badge">Pending Verification</div>
                 </div>
                 <div className="location-context-card">
                   <h4>📍 Automated Location Capture</h4>
-                  <p><strong>Area:</strong> {viewingPost.location}</p>
-                  <div className="mock-map-view"><span>Map View Enabled</span></div>
+                  <p><strong>Area:</strong> {viewingPost.missing_location}</p>
+
+                  <div className="map-container">
+                    <iframe
+                      title="Location Map"
+                      className="google-map-iframe"
+                      loading="lazy"
+                      /* Notice the URL doesn't use the 'Embed API' endpoint, 
+                        but the standard Google Maps search embed endpoint */
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(viewingPost.missing_location)}&t=&z=13&ie=UTF8&iwloc=near&output=embed`}
+                    ></iframe>
+                  </div>
                 </div>
               </div>
 
@@ -230,7 +252,7 @@ export default function PendingPosts() {
               <div className="modal-right-col">
                 <div className="modal-header">
                   <span className="post-id-label">POST REFERENCE</span>
-                  <span className="post-id-number">#{viewingPost.id}</span>
+                  <span className="post-id-number">#{viewingPost.post_id}</span>
                   <h2 className="modal-title">Item Analysis</h2>
                 </div>
 
@@ -263,7 +285,7 @@ export default function PendingPosts() {
       {showRejectModal && viewingPost && (
         <div className="modal-overlay">
           <div className="rejection-card">
-            <h3>Reject Post #{viewingPost.id}</h3>
+            <h3>Reject Post #{viewingPost.post_id}</h3>
             <label className="block-label">Select Reason</label>
             <select className="rejection-select" value={rejectCategory} onChange={(e) => setRejectCategory(e.target.value)}>
               <option value="">-- Select a reason --</option>

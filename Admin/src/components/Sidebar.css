@@ -3,12 +3,15 @@
   min-height: 100vh; 
   height: 100%;
   position: sticky;
-  flex-direction: column;
   /* background: linear-gradient(180deg, #e89b7f 0%, #8b6ba8 100%); */
   background: #ffffff;
   color: rgb(0, 0, 0);
   overflow: hidden;
   box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .brand {
   display: flex;
@@ -49,4 +52,25 @@
   background: rgba(228, 105, 255, 0.25);
   color: #000000;
   padding-left: 9px;
+}
+
+.logout-button {
+  width: 100%;
+  padding: 12px;
+  background: #fff1f2; /* Light red background */
+  color: #e11d48;      /* Rose/Red text */
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  margin-top: auto; 
+  margin-bottom: 10px;
+}
+
+.logout-button:hover {
+  background: #ffe4e6;
+  color: #be123c;
+  transform: translateY(-1px);
 }

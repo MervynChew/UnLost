@@ -25,7 +25,7 @@ export default function Logs() {
     { id: '1', timestamp: '12 November 2025, 11:24', action: 'Post Created', performedBy: 'User 22302352' },
     { id: '2', timestamp: '25 June 2025, 12:52', action: 'Item Claimed', performedBy: 'User 22305215' },
     { id: '3', timestamp: '29 September 2025, 20:34', action: 'Post Deleted', performedBy: 'System' },
-    { id: '4', timestamp: '21 February 2025, 17:45', action: 'Scheduled Disabled', performedBy: 'Admin 001' },
+    { id: '4', timestamp: '21 February 2025, 17:45', action: 'Accepted Pending Post', performedBy: 'Admin 001' },
     // Add more mock items to test pagination...
   ]);
 
@@ -129,7 +129,6 @@ export default function Logs() {
                 </div>
                 
                 <div className="filter-actions-vertical">
-                  <button className="apply-btn" onClick={() => setShowFilterMenu(false)}>Apply</button>
                   <button className="clear-filter-btn" onClick={() => setFilters({role:'All', dateRange:'All', activityGroup:'All'})}>Reset All</button>
                 </div>
               </div>

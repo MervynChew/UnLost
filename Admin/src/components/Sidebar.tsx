@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 import icon from '../assets/icon.png';
 import './Sidebar.css';
 
@@ -13,6 +14,11 @@ export default function Sidebar() {
     { to: '/manage-users', label: 'Manage Users' },
     { to: '/logs', label: 'Logs' },
   ];
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error('Error signing out:', error.message);
+  };
 
   return (
     <div className="sidebar-wrap">
@@ -31,6 +37,10 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      <button className="logout-button" onClick={handleLogout}>
+        Logout
+      </button>
     </div>
   );
 }

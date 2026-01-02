@@ -1,3 +1,26 @@
+/* Control colors */
+:root {
+    --white: #ffffff;    /* Headers and main buttons */
+    --bg-purple-light: #e5d5f2;   /* Search bar and active states */
+    --tag-yellow: #fdf289;        /* Found item tags */
+    --status-lost: #e89b7f;  /* Peach/Salmon for Unclaimed */
+    --status-claimed: #a2f2a6;    /* Soft Mint for Claimed */
+    --status-archived: #adb5bd;   /* Grey for Archived */
+    --text-dark: #333333;
+    --text-muted: #888888;
+    --modal-title: #0d1b2a;
+}
+.dot {
+  height: 8px;
+  width: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+}
+.lost-dot { background-color: var(--status-lost); }
+.claimed-dot { background-color: var(--status-claimed); }
+.archived-dot { background-color: var(--status-archived); }
+
 .all-posts-container {
     -webkit-user-select: none;
     -ms-user-select: none;
@@ -12,7 +35,7 @@ input[type="text"],
     -ms-user-select: text;
     user-select: text;
 }
-.filter-option, 
+.filter-option,
 .page-number, 
 .item-badge, 
 .footer-tag, 
@@ -74,6 +97,18 @@ input[type="text"],
     border: 1px solid #ddd;
     color: #333;
 }
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 1000;
+    display: block;
+}
 .suggestion-section {
     margin-bottom: 20px;
 }
@@ -90,6 +125,7 @@ input[type="text"],
     align-items: center;
 }
 .search-bar-wrap {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -111,7 +147,7 @@ input[type="text"],
     align-items: center;
     border-left: 1px solid #eee;
     padding-left: 10px;
-    min-width: 200px;
+    min-width: 0;
 }
 .tag-input-container input {
     border: none !important;
@@ -121,7 +157,7 @@ input[type="text"],
     font-size: 14px;
     color: #333;
     flex: 1;
-    min-width: 100px;
+    min-width: 120px;
 }
 
 /* Clear All Button */
@@ -335,21 +371,25 @@ input[type="text"],
     border-radius: 8px;
     font-size: 12px;
     font-weight: bold;
+    z-index: 5;
 }
-.item-badge.unclaimed { 
-    background: var(--status-unclaimed);
+.item-badge.lost { 
+    background: var(--status-unclaimed, #e89b7f);
     color: white;
     border-radius: 8px;
+    z-index: 10;
 }
 .item-badge.claimed { 
-    background: var(--status-claimed);
+    background: var(--status-claimed, #a2f2a2);
     color: #155724;
     border-radius: 8px;
+    z-index: 10;
 }
 .item-badge.archived {
-    background: var(--status-archived);
+    background: var(--status-archived, #adb5bd);
     color: #ffffff;
     border-radius: 8px;
+    z-index: 10;
 }
 .card-footer {
     background: #fff3d6; /* Pale yellow footer from Figma */
@@ -501,6 +541,11 @@ input[type="text"],
     background-color: #f0f0f0;
     color: #666;
 }
+.unarchive-btn {
+    background-color: #d1e7dd; /* Light green background */
+    color: #0f5132;           /* Dark green text */
+    border: 1px solid #badbcc;
+}
 .delete-btn {
     background-color: #ff4d4d; /* Bright red */
     color: white;
@@ -625,25 +670,3 @@ input[type="text"],
     from { bottom: -50px; opacity: 0; }
     to { bottom: 30px; opacity: 1; }
 }
-
-/* Control colors */
-:root {
-    --white: #ffffff;    /* Headers and main buttons */
-    --bg-purple-light: #e5d5f2;   /* Search bar and active states */
-    --tag-yellow: #fdf289;        /* Found item tags */
-    --status-unclaimed: #e89b7f;  /* Peach/Salmon for Unclaimed */
-    --status-claimed: #a2f2a2;    /* Soft Mint for Claimed */
-    --status-archived: #adb5bd;   /* Grey for Archived */
-    --text-dark: #333333;
-    --text-muted: #888888;
-    --modal-title: #0d1b2a;
-}
-.dot {
-  height: 8px;
-  width: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 8px;
-}
-.unclaimed-dot { background-color: var(--status-unclaimed); }
-.claimed-dot { background-color: var(--status-claimed); }

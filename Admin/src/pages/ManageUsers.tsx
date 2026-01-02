@@ -49,10 +49,12 @@ export default function ManageUsers() {
   const [sortOrder, setSortOrder] = useState<'Newest' | 'Oldest'>('Newest');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [viewingHistoryItem, setViewingHistoryItem] = useState<UserHistory | null>(null);
+  const [viewingHistoryItem, setViewingHistoryItem] = useState<DetailedPost | null>(null);
   const [isLoadingPost, setIsLoadingPost] = useState(false);
-
   const [disabledUsers, setDisabledUsers] = useState<string[]>([]);
+  // --- Pagination Logic ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 4; // You can change this number
 
   // --- Mock Data ---
   const [users] = useState<User[]>([
@@ -87,7 +89,54 @@ export default function ManageUsers() {
           posts: [{ id: 'P3', date: '05/01/2024', status: 'Pending' }],
           claims: []
         }
-      },
+    },
+    {
+      id: '3',
+      name: 'Siti Aminah',
+      email: 'siti@student.usm.my',
+      personalEmail: 'siti.aminah@gmail.com',
+      matricNumber: '22304567',
+      postsCount: 0,
+      lastActive: '15/03/2025',
+      history: {
+        posts: [],
+        claims: [{ id: 'C3', date: '12/03/2025', status: 'Resolved' }]
+      }
+    },
+    {
+      id: '4',
+      name: 'John Smith',
+      email: 'john@student.usm.my',
+      personalEmail: 'john.smith@gmail.com',
+      matricNumber: '22307890',
+      postsCount: 2,
+      lastActive: '30/05/2025',
+      history: {
+        posts: [{ id: 'P4', date: '28/05/2025', status: 'Resolved' }],
+        claims: [{ id: 'C4', date: '15/04/2025', status: 'Pending' }]
+      }
+    },
+    {
+      id: '5',
+      name: 'Lee Wei',
+      email: 'lee@student.usm.my',
+      personalEmail: 'lee.wei@gmail.com',
+      matricNumber: '22303456',
+      postsCount: 4,
+      lastActive: '05/06/2025',
+      history: {
+        posts: [
+          { id: 'P5', date: '01/06/2025', status: 'Resolved' },
+          { id: 'P6', date: '03/06/2025', status: 'Pending' },
+          { id: 'P7', date: '04/06/2025', status: 'Resolved' }
+        ],
+        claims: [
+          { id: 'C5', date: '20/05/2025', status: 'Resolved' },
+          { id: 'C6', date: '22/05/2025', status: 'Resolved' },
+          { id: 'C7', date: '25/05/2025', status: 'Pending' }
+        ]
+      }
+    }
   ]);
 
   // --- Functions ---
@@ -96,15 +145,10 @@ export default function ManageUsers() {
     setViewMode('detail');
   };
 
-  const handleDisableUser = (userId: string) => {
-    // Toggle the disabled status in your local state
-    // You might want to add 'isDisabled: boolean' to your User interface
-    alert(`User ${userId} has been disabled.`);
-  };
-
   const clearAllFilters = () => {
     setSearchTerm('');
     setSortOrder('Newest');
+    setCurrentPage(1);
   };
 
   const toggleDisable = (id: string) => {
@@ -145,22 +189,6 @@ export default function ManageUsers() {
     }
   };
 
-  // --- Filter & Sort Logic ---
-  const filteredAndSortedUsers = users
-    .filter((user) => {
-      const search = searchTerm.toLowerCase();
-      return (
-        user.name.toLowerCase().includes(search) ||
-        user.email.toLowerCase().includes(search) ||
-        user.matricNumber.toLowerCase().includes(search)
-      );
-    })
-    .sort((a, b) => {
-      const dateA = new Date(a.lastActive.split('/').reverse().join('-')).getTime();
-      const dateB = new Date(b.lastActive.split('/').reverse().join('-')).getTime();
-      return sortOrder === 'Newest' ? dateB - dateA : dateA - dateB;
-    });
-
   const confirmDelete = (user: User) => {
     setUserToDelete(user);
     setShowDeleteModal(true);
@@ -176,7 +204,29 @@ export default function ManageUsers() {
     alert("User has been successfully deleted.");
   };
 
+  // 1. First, Search and Sort the data
+  const filteredAndSortedUsers = users
+    .filter((user) => {
+      const search = searchTerm.toLowerCase();
+      return (
+        user.name.toLowerCase().includes(search) ||
+        user.email.toLowerCase().includes(search) ||
+        user.matricNumber.toLowerCase().includes(search)
+      );
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.lastActive.split('/').reverse().join('-')).getTime();
+      const dateB = new Date(b.lastActive.split('/').reverse().join('-')).getTime();
+      return sortOrder === 'Newest' ? dateB - dateA : dateA - dateB;
+    });
 
+  // 2. Second, Calculate Slice for the current page
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredAndSortedUsers.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(filteredAndSortedUsers.length / usersPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   // --- Detail View Rendering ---
   if (viewMode === 'detail' && selectedUser) {
@@ -237,7 +287,7 @@ export default function ManageUsers() {
             <h3 className="section-main-title">User History</h3>
             <div className="history-block">
               <h4 className="history-sub-title">My Posts</h4>
-              <div className="history-list">
+              <div className="history-list scrollable-history">
                 {selectedUser.history.posts.map(post => (
                   <div key={post.id} className="history-card post-card" onClick={() => handlePostClick(post, 'post')}>
                     <img className="placeholder-box" src={`https://picsum.photos/seed/${post.id}/400/300`} alt="Post Placeholder" />
@@ -258,7 +308,7 @@ export default function ManageUsers() {
 
             <div className="history-block">
               <h4 className="history-sub-title">My Claims </h4>
-              <div className="history-list">
+              <div className="history-list scrollable-history">
                 {selectedUser.history.claims.map(claim => (
                   <div key={claim.id} className="history-card claim-card" onClick={() => handlePostClick(claim, 'claim')}>
                     <img className="placeholder-box" src={`https://picsum.photos/seed/${claim.id}/400/300`} alt="Post Placeholder" />
@@ -388,7 +438,10 @@ export default function ManageUsers() {
               type="text" 
               placeholder="Enter name, email or matric number..." 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
 
@@ -413,13 +466,21 @@ export default function ManageUsers() {
                 <p className="filter-label">Sort Activity:</p>
                 <button 
                   className={`filter-option ${sortOrder === 'Newest' ? 'active' : ''}`}
-                  onClick={() => { setSortOrder('Newest'); setShowFilterMenu(false); }}
+                  onClick={() => { 
+                    setSortOrder('Newest'); 
+                    setCurrentPage(1);
+                    setShowFilterMenu(false); 
+                  }}
                 >
                   Newest First
                 </button>
                 <button 
                   className={`filter-option ${sortOrder === 'Oldest' ? 'active' : ''}`}
-                  onClick={() => { setSortOrder('Oldest'); setShowFilterMenu(false); }}
+                  onClick={() => { 
+                    setSortOrder('Oldest'); 
+                    setCurrentPage(1);
+                    setShowFilterMenu(false); 
+                  }}
                 >
                   Oldest First
                 </button>
@@ -442,8 +503,8 @@ export default function ManageUsers() {
             </tr>
           </thead>
           <tbody>
-            {filteredAndSortedUsers.length > 0 ? (
-              filteredAndSortedUsers.map(user => (
+            {currentUsers.length > 0 ? (
+              currentUsers.map(user => (
                 <tr key={user.id} className={disabledUsers.includes(user.id) ? 'row-disabled' : ''}>
                   <td>{user.name}</td>
                   <td className="email-cell">{user.email}</td>
@@ -451,7 +512,9 @@ export default function ManageUsers() {
                   <td>{user.lastActive}</td>
                   <td className="user-actions">
                     <button className="btn-view-sm" onClick={() => handleViewUser(user)}>View</button>
-                    <button className="btn-disable-sm" onClick={() => toggleDisable(user.id)}>{disabledUsers.includes(user.id) ? 'Enable' : 'Disable'}</button>
+                    <button className="btn-disable-sm" onClick={() => toggleDisable(user.id)}>
+                      {disabledUsers.includes(user.id) ? 'Enable' : 'Disable'}
+                    </button>
                     <button className="btn-delete-sm" onClick={() => confirmDelete(user)}> Delete </button>
                   </td>
                 </tr>
@@ -463,6 +526,36 @@ export default function ManageUsers() {
             )}
           </tbody>
         </table>
+
+        {filteredAndSortedUsers.length > usersPerPage && (
+          <div className="pagination">
+            <button 
+              onClick={() => paginate(currentPage - 1)} 
+              disabled={currentPage === 1}
+              className="pager-btn"
+            > 
+              &lt; 
+            </button>
+            
+            {[...Array(totalPages)].map((_, index) => (
+              <button 
+                key={index + 1} 
+                onClick={() => paginate(index + 1)}
+                className={`page-num ${currentPage === index + 1 ? 'active' : ''}`}
+              >
+                {index + 1}
+              </button>
+            ))}
+
+            <button 
+              onClick={() => paginate(currentPage + 1)} 
+              disabled={currentPage === totalPages}
+              className="pager-btn"
+            > 
+              &gt; 
+            </button>
+          </div>
+        )}
       </div>
 
       {showDeleteModal && (
