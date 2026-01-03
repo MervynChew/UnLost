@@ -201,7 +201,7 @@ export default function Confirmation({
         >
           <Ionicons name="close-circle" size={24} color="white" />
           <Text style={styles.buttonText}>
-            {isUpdating ? 'Processing...' : 'No, I Didn\'t Receive It'}
+            {isUpdating ? 'Processing...' : 'No, I DID NOT Receive It'}
           </Text>
         </TouchableOpacity>
       </View>

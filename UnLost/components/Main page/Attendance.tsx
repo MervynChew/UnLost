@@ -107,12 +107,12 @@ export default function Attendance({
       if (meetingTimePassed) {
         Alert.alert(
           'Time Has Passed', 
-          'The meeting time has passed. You can no longer mark attendance.'
+          'The meeting time has passed. You can no longer mark the attendance.'
         );
       } else {
         Alert.alert(
           'Not Available Yet', 
-          'Attendance can only be marked within 5 minutes before the scheduled meeting time.'
+          'Attendance can only be marked within 5 minutes before and 10 minutes after the scheduled meeting time.'
         );
       }
       return;
@@ -485,12 +485,12 @@ export default function Attendance({
               value={tempDescription}
               onChangeText={setTempDescription}
               multiline
-              maxLength={200}
+              maxLength={80}
               textAlignVertical="top"
             />
 
             <Text style={styles.charCount}>
-              {tempDescription.length}/200 characters
+              {tempDescription.length}/80 characters
             </Text>
 
             <TouchableOpacity
