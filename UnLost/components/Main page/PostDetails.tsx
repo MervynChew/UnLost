@@ -196,6 +196,20 @@ export default function PostDetails({ propId, onClose }: Props) {
     //return false; // FOR TESTING
   };
 
+  const bothPartiesAttended = () => {
+    return scheduleRequest?.finder_attendance && scheduleRequest?.owner_attendance;
+  };
+
+  // Check if the scheduled meeting time has already passed or not
+  const isMeetingTimeExpired = () => {
+    if (!scheduleRequest?.meet_date || !scheduleRequest?.meet_time) return false;
+    
+    const now = new Date();
+    const meetingDateTime = new Date(`${scheduleRequest.meet_date}T${scheduleRequest.meet_time}`);
+    
+    return now >= meetingDateTime; 
+  };
+
   const handleAutoFailMeeting = async () => {
     if (!scheduleRequest) return;
 
@@ -287,29 +301,6 @@ export default function PostDetails({ propId, onClose }: Props) {
     getViewer();
     fetchScheduleRequest();
   }, [id]);
-
-  // 3. ADD useEffect to check meeting failure:
-  useEffect(() => {
-    if (hasScheduleRequest && scheduleRequest?.status === "accepted") {
-      const isFailed = checkMeetingFailure();
-      setMeetingFailed(isFailed);
-      
-      if (isFailed && scheduleRequest.status !== 'failed') {
-        handleAutoFailMeeting();
-      }
-      
-      const interval = setInterval(() => {
-        const isFailed = checkMeetingFailure();
-        setMeetingFailed(isFailed);
-        
-        if (isFailed && scheduleRequest.status !== 'failed') {
-          handleAutoFailMeeting();
-        }
-      }, 60000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [hasScheduleRequest, scheduleRequest]);
 
   // COMPLETE REAL-TIME SUBSCRIPTION 
   useEffect(() => {
@@ -858,6 +849,15 @@ export default function PostDetails({ propId, onClose }: Props) {
   const handleAcceptRequest = async () => {
     if (!scheduleRequest) return;
 
+    // If meeting time passed, unable to accept meeting
+    if (isMeetingTimeExpired()) {
+      Alert.alert(
+        "Meeting Time Passed",
+        "The proposed meeting time has already passed. Please reschedule a new time.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
 
     const { data, error } = await supabase
       .from("schedule_requests")
@@ -1427,7 +1427,7 @@ export default function PostDetails({ propId, onClose }: Props) {
                     {scheduleRequest.status === "accepted" && (
                       <View style={[styles.statusContainerWithCancel, { backgroundColor: "#E8F5E9" }]}>
                         {/* Cancel Button in top-right */}
-                        <CancelButton onPress={handleCancelRequest} />
+                        {!bothPartiesAttended() && <CancelButton onPress={handleCancelRequest} />}
 
                         <Ionicons name="checkmark-circle" size={50} color="#4CAF50" />
                         <Text style={styles.statusTitle}>Meeting Confirmed!</Text>
@@ -1454,12 +1454,14 @@ export default function PostDetails({ propId, onClose }: Props) {
                             </Text>
                           </View>
                         </View>
-                        <ButtonOrange
-                          onPress={handleRescheduleClick}
-                          title="Reschedule"
-                          variant="primary"
-                          style={styles.singleBtn}
-                        />
+                        {!bothPartiesAttended() && (
+                          <ButtonOrange
+                            onPress={handleRescheduleClick}
+                            title="Reschedule"
+                            variant="primary"
+                            style={styles.singleBtn}
+                          />
+                        )}
                       </View>
                     )}
 
@@ -1707,12 +1709,14 @@ export default function PostDetails({ propId, onClose }: Props) {
                             </Text>
                           </View>
                         </View>
-                        <ButtonOrange
-                          onPress={handleRescheduleClick}
-                          title="Reschedule"
-                          variant="primary"
-                          style={styles.singleBtn}
-                        />
+                        {!bothPartiesAttended() && (
+                          <ButtonOrange
+                            onPress={handleRescheduleClick}
+                            title="Reschedule"
+                            variant="primary"
+                            style={styles.singleBtn}
+                          />
+                        )}
                       </View>
                     )}
 

@@ -35,7 +35,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string>('');
-  const { setUnreadCount } = useNotifications();
+  const { refreshUnreadCount } = useNotifications();
 
   useEffect(() => {
     getCurrentUser();
@@ -83,10 +83,6 @@ export default function NotificationsPage() {
 
       console.log('✅ Fetched', data?.length, 'notifications');
       setNotifications(data || []);
-
-      // Update unread count
-      const unread = data?.filter(n => !n.read).length || 0;
-      setUnreadCount(unread);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -169,6 +165,7 @@ export default function NotificationsPage() {
         console.error('Error marking as read:', error);
       } else {
         console.log('✅ Marked as read:', notificationId);
+        await refreshUnreadCount();
       }
     } catch (error) {
       console.error('Error:', error);
@@ -226,6 +223,7 @@ export default function NotificationsPage() {
               }
 
               console.log('✅ Notification soft deleted successfully');
+              await refreshUnreadCount();
             } catch (error) {
               console.error('Error deleting:', error);
               Alert.alert('Error', 'Failed to delete notification');
@@ -251,6 +249,7 @@ export default function NotificationsPage() {
         console.error('Mark all as read error:', error);
       } else {
         console.log('✅ All notifications marked as read');
+        await refreshUnreadCount();
       }
     } catch (error) {
       console.error('Error:', error);
@@ -307,6 +306,7 @@ export default function NotificationsPage() {
               }
 
               console.log('✅ All read notifications cleared successfully');
+              await refreshUnreadCount();
             } catch (error) {
               console.error('Error clearing notifications:', error);
               Alert.alert('Error', 'Failed to clear notifications');
