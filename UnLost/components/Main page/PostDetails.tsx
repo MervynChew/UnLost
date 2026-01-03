@@ -295,6 +295,28 @@ export default function PostDetails({ propId, onClose }: Props) {
     }
   }, [hasScheduleRequest, scheduleRequest?.status, scheduleRequest?.finder_attendance, scheduleRequest?.owner_attendance, isPostOwner, isRequester, isItemCompleted]);
 
+  // fallback if the cron is close/not work
+  useEffect(() => {
+    if (hasScheduleRequest && scheduleRequest?.status === "accepted") {
+      const isFailed = checkMeetingFailure();
+      setMeetingFailed(isFailed);
+      
+      if (isFailed && scheduleRequest.status !== 'failed') {
+        handleAutoFailMeeting();
+      }
+      
+      const interval = setInterval(() => {
+        const isFailed = checkMeetingFailure();
+        setMeetingFailed(isFailed);
+        
+        if (isFailed && scheduleRequest.status !== 'failed') {
+          handleAutoFailMeeting();
+        }
+      }, 60000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [hasScheduleRequest, scheduleRequest]);
 
   useEffect(() => {
     fetchPostDetails();
