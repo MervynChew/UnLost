@@ -511,35 +511,18 @@ export default function PostDetails({ propId, onClose }: Props) {
     );
   }
 
-  const handleClaimSuccess = async() => {
+  const handleClaimSuccess = () => {
     console.log('✅ Item completed successfully');
-    try {
-      // Update the posts table: set status to 'claimed' and claim_date to now
-      const { error: postError } = await supabase
-        .from('posts')
-        .update({ 
-          status: 'claimed',
-          claim_date: new Date().toISOString()
-        })
-        .eq('post_id', Number(id));
 
-      if (postError) {
-        console.error('Error updating post status:', postError);
-        Alert.alert('Error', 'Failed to update post status');
-        return;
-      }
+    // update local UI state
+    setIsItemCompleted(true);
+    setPostStatus("completed");
 
-      console.log('✅ Post status updated to claimed');
-      
-      setIsItemCompleted(true);
-      setPostStatus("completed");
-      fetchPostDetails();
-      fetchScheduleRequest();
-    } catch (error) {
-      console.error('❌ Unexpected error in handleClaimSuccess:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
-    }
+    // refresh data from backend to sync UI
+    fetchPostDetails();
+    fetchScheduleRequest();
   };
+
 
   const handleClaimFailure = () => {
     console.log('❌ Claim failed - meeting marked as failed');
