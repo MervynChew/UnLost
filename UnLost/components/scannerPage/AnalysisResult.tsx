@@ -9,6 +9,8 @@ import {
   TextInput,
   Modal,
   Pressable,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useState } from "react";
 import { ThemedText } from "@/components/themed-text";
@@ -27,6 +29,8 @@ import { Ionicons } from "@expo/vector-icons"; // <--- Add this
 
 import * as FileSystem from "expo-file-system/legacy";
 import { File, Directory, Paths } from "expo-file-system";
+
+import Seperator from "../General/sectionSeperator";
 
 type AnalysisResultProps = {
   imageUri: string; // The Base64 image from the server
@@ -119,8 +123,6 @@ export function AnalysisResult({
           upsert: false,
         });
 
-      // --- FIX ENDS HERE ---
-
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
@@ -160,6 +162,13 @@ export function AnalysisResult({
 
   // --- TAG FUNCTIONS ---
   const handleAddTag = () => {
+    if (editableTags.length >= 10) {
+      Alert.alert(
+        "Limit Reached", 
+        "Maximum of 10 tags can be inserted.\n\nPlease delete the previous tag to add more tag."
+      );
+      return; // Exit the function early
+    }
     if (newTagText.trim().length > 0) {
       setEditableTags([...editableTags, newTagText.trim()]);
       setNewTagText(""); // Clear input
@@ -170,8 +179,17 @@ export function AnalysisResult({
     setEditableTags(editableTags.filter((_, index) => index !== indexToRemove));
   };
 
+  const handleAddTagLength = (text: string) => {
+    const cleanedText = text.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15);
+    setNewTagText(cleanedText);
+  }
+
   return (
     <View style={styles.mainContainer}>
+      <KeyboardAvoidingView 
+    style={{ flex: 1 }} 
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+  >
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -207,8 +225,9 @@ export function AnalysisResult({
           />
         </View>
 
+        <Seperator title="Tag"/>
+
         <View style={styles.tagsWrapper}>
-          <Text style={styles.tag}>Tag:</Text>
           {validTags.map((tag, index) => (
             <View key={index} style={styles.tagBadge}>
               <Text style={styles.tagText}>{tag.toUpperCase()}</Text>
@@ -258,7 +277,7 @@ export function AnalysisResult({
                   style={styles.addTagInput}
                   placeholder="Add new tag..."
                   value={newTagText}
-                  onChangeText={setNewTagText}
+                  onChangeText={handleAddTagLength}
                 />
                 <TouchableOpacity
                   onPress={handleAddTag}
@@ -278,6 +297,8 @@ export function AnalysisResult({
           </View>
         </Modal>
 
+        <Seperator title="Description"/>
+
         <View style={styles.descriptionBox}>
           <TextInput
             style={styles.inputDescriptionBox}
@@ -286,7 +307,9 @@ export function AnalysisResult({
             value={description}
             multiline={true} // ✅ Allow multiple lines
             textAlignVertical="top"
+            maxLength={300}
           />
+          <Text style={styles.inputDescriptionCounter}>{description.length} / 300</Text>
         </View>
 
         <View style={styles.bottomButton}>
@@ -301,6 +324,7 @@ export function AnalysisResult({
         </View>
         <Footer />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={styles.fixedFooter}>
         <BackButton onPress={onScanAgain} />
@@ -443,16 +467,23 @@ const styles = StyleSheet.create({
 
     marginVertical: 20,
     borderRadius: 10,
+    borderColor: "#ccc",
   },
   inputDescriptionBox: {
     minHeight: 120, // ✅ Allows vertical expansion
     padding: 12,
     fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#ccc",
+ 
     borderRadius: 10,
 
     textAlignVertical: "top", // ✅ VERY IMPORTANT for Android
+  },
+  inputDescriptionCounter: {
+    textAlign: 'right',
+    fontSize: 12,
+    color: 'gray',
+    margin: 10,
+    marginTop: 0,
   },
   editButton: {
     alignSelf: "flex-end",

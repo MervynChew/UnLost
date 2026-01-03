@@ -4,7 +4,6 @@ import { ScrollView, Alert, Image, View, StyleSheet, Text, Modal, TouchableOpaci
 import { supabase } from '../../lib/supabase';
 import Header from '../General/header';
 
-
 import { Colors } from "../../constants/theme";
 import { ButtonOrange } from "../General/buttonOrange";
 import BackButton from "../General/backButton";
@@ -1296,7 +1295,7 @@ export default function PostDetails({ propId, onClose }: Props) {
                     <View style={styles.bottomButton}>
                       <ButtonOrange
                         onPress={submitToDatabase}
-                        title="Update Request"
+                        title="Update"
                         variant={"secondary"}
                         textStyle={{fontSize: 13}}
                         style={{
@@ -1557,7 +1556,7 @@ export default function PostDetails({ propId, onClose }: Props) {
                     <View style={styles.bottomButton}>
                       <ButtonOrange
                         onPress={submitToDatabase}
-                        title="Propose New Time"
+                        title="Propose"
                         variant={"secondary"}
                         textStyle={{fontSize: 13}}
                         style={{
@@ -1989,7 +1988,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   confirmButton: { width: "40%", minHeight: 40, marginRight: "2%" },
-  rescheduleButton: { width: "40%", minHeight: 40, marginRight: "2%" },
+  rescheduleButton: { width: "30%", minHeight: 40, marginRight: "2%" },
   cancelButton: { width: "30%", minHeight: 40 },
   bottomButton: {
     flexDirection: "row",
