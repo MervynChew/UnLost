@@ -10,7 +10,9 @@ from ultralytics import YOLO
 class RobustDetectorAPI:
     def __init__(self, model_paths=None): 
         if model_paths is None:
-            model_paths = ['yolov8s.pt'] # Default to standard only
+            # model_paths = ['yolov8s.pt'] # Default to standard only
+
+            model_paths = ['generalItem2.pt'] 
 
         # 1. Auto-detect GPU
         self.device = 0 if torch.cuda.is_available() else 'cpu'

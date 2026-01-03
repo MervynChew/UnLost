@@ -256,56 +256,50 @@ export default function ScanAI() {
       });
       const dataGemini = await responseGemini.json();
 
-      if ((dataGemini.data.sensitive).toLowerCase() == 'sensitive') {
-        Alert.alert("The image contain sensitive information");
+      if (dataGemini?.data?.sentitive?.toLowerCase() === 'sensitive') { 
+        // Note: Check if your backend is 'sentitive' or 'sensitive'
+        Alert.alert("The image contains sensitive information");
         setIsSensitive(true);
       }
 
       if (data.found) {
-        // --- COMBINE RESULTS ---
-        setResult({
-          // Data from Call 1 (YOLO/OpenCV)
-          image: `data:image/jpeg;base64,${data.image_base64}`,
-          label: data.label ?? "Unknown",
-          color: data.color ?? "Unknown",
-          
-          // Data from Local GPS
-          location: locString,
-          
-          // Data from Call 2 (Gemini)
-          // If Gemini fails for some reason, fallback to a default string
-          description: dataGemini.success ? dataGemini.data.description : "Analysis unavailable.",
-        });
-      }
-      else if (!data.found && dataGemini.success) {
-        setResult({
-          // Data from Call 1 (YOLO/OpenCV)
-          image: uri,
-          label: dataGemini.success 
-          ? (dataGemini.data.tags || ["Unknown"]) // Get the full list from Gemini
-          : [data.label || "Unknown"],            // Wrap YOLO result in an array
-          color: dataGemini.data.color ?? "Unknown",
-          
-          // Data from Local GPS
-          location: locString,
-          
-          // Data from Call 2 (Gemini)
-          // If Gemini fails for some reason, fallback to a default string
-          description: dataGemini.success ? dataGemini.data.description : "Analysis unavailable.",
-        });
-      }
-      else {
-        Alert.alert("No Object Found!");
-        setLoading(false);
-        return; // Don't run the next code
-      }
-
-      console.log("Data from Gemini:", dataGemini.success, dataGemini.data);
-
-    } catch (error) {
-      Alert.alert("Connection Error", "Check your backend connection.");
-      console.log(error);
-    } finally {
+      // SUCCESS: YOLO found it
+      setResult({
+        image: `data:image/jpeg;base64,${data.image_base64}`,
+        label: data.label ?? "Item Detected",
+        color: data.color ?? "Unknown",
+        location: locString,
+        description: dataGemini.success ? dataGemini.data.description : "Analysis unavailable.",
+      });
+    } else if (dataGemini.success) {
+      // FALLBACK 1: Gemini found it
+      setResult({
+        image: uri, // <--- Using your local device image URI
+        label: dataGemini.data.tags?.[0] || "Unidentified",
+        color: dataGemini.data.color || "Unknown",
+        location: locString,
+        description: dataGemini.data.description,
+      });
+    } else {
+      // FALLBACK 2: Both failed, but we still show the result page
+      setResult({
+        image: uri, // <--- Using local URI
+        label: "Manual Entry Required",
+        color: "Unknown",
+        location: locString,
+        description: "The AI models couldn't identify this. Please provide a manual description.",
+      });
+    }
+  } catch (error) {
+    // ERROR FALLBACK: Network or Server Error
+    setResult({
+      image: uri, // <--- Still show the user's photo!
+      label: "Manual Entry Required",
+      color: "Unknown",
+      location: locString,
+      description: "Analysis failed due to a connection error. Please check your internet or manually provide a description.",
+    });
+  } finally {
       setLoading(false);
     }
   };
@@ -324,6 +318,21 @@ export default function ScanAI() {
   }
 
   // 1. If we have a result, show the Child Component
+  // if (result) {
+  //   return (
+  //     <AnalysisResult
+  //       // FIX 3: TypeScript Safety Check (?? "")
+  //       imageUri={result.image ?? ""}
+  //       label={Array.isArray(result.label) ? result.label : [result.label]}
+  //       color={result.color}
+  //       location={result.location}
+  //       descriptionGemini={result.description}
+  //       isSensitive={isSensitive}
+  //       onScanAgain={() => setResult(null)}
+  //     />
+  //   );
+  // }
+
   if (result) {
     return (
       <AnalysisResult

@@ -212,12 +212,12 @@ export default function HomeScreen() {
   // When scroll is 0, push SearchBar down by 'welcomeHeight'.
   // When scroll matches 'welcomeHeight', push SearchBar down by 0 (Sticks search bar to top)
   // Inside your HomeScreen component
-const WELCOME_ROW_HEIGHT = 150; // Welcome Row Height
-  const searchBarTranslateY = scrollY.interpolate({
-    inputRange: [0, WELCOME_ROW_HEIGHT || 100],
-    outputRange: [WELCOME_ROW_HEIGHT - 40, 0], // Adjust height of search bar initially
-    extrapolate: 'clamp',
-  });
+  const WELCOME_ROW_HEIGHT = 150; // Welcome Row Height
+    const searchBarTranslateY = scrollY.interpolate({
+      inputRange: [0, WELCOME_ROW_HEIGHT || 100],
+      outputRange: [WELCOME_ROW_HEIGHT - 40, 0], // Adjust height of search bar initially
+      extrapolate: 'clamp',
+    });
 
   return (
     <View style={styles.container}>

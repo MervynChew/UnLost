@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, Image, StyleSheet } from 'react-native';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { Colors } from '../../constants/theme';
 
 type ProfileProps = {
   onPress: () => void;
@@ -44,9 +45,8 @@ export default function Profile({ onPress }: ProfileProps) {
 
 const styles = StyleSheet.create({
   container: {
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    right: 20,
   },
   avatar: {
     width: 50,

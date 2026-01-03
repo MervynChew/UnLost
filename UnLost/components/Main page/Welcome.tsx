@@ -19,6 +19,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'column',
     justifyContent: 'center',
+    width: '70%',
   },
   welcome: {
     fontSize: 32,
@@ -26,7 +27,7 @@ const styles = StyleSheet.create({
     color: Colors.light.purple,
   },
   user: {
-    fontSize: 32,
+    fontSize: 22,
     fontWeight: 'bold',
     color: Colors.light.orange,
   },

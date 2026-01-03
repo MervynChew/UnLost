@@ -159,7 +159,7 @@ async def analyze_image(file: UploadFile = File(...)):
             "color": "Dominant color",
             "description": "Short description of the item",
             "tags": ["tag1", "tag2"],
-            "location_context": "Indoor/Outdoor/Desk"
+            "location_context": "Indoor/Outdoor/Desk",
             "sentitive": "Sensitive/Not sensitive"
         }
         Sensitive means the image contain sexual item or private such as bank card with Card Verification
