@@ -82,14 +82,31 @@ Be precise and output RAW JSON only.
 """
 
 # GENERATION CONFIG: This forces the "Way of Output".
-# We set response_mime_type to "application/json" to guarantee valid JSON.
+# This configuration dictionary controls the "creativity" and structure of the AI response
 generation_config = {
-    "temperature": 0.4, # Lower temperature = more deterministic/factual
+    # Controls randomness: 0.4 ensures the model stays factual and consistent 
+    # rather than creative, which is vital for accurate object descriptions.
+    "temperature": 0.4, 
+
+    # Nucleus sampling: The model considers the smallest set of tokens whose 
+    # cumulative probability sum is at least 95%. This keeps the response coherent.
     "top_p": 0.95,
+
+    # Limits the model's vocabulary to the top 64 most likely next words, 
+    # reducing the chance of "hallucinations" or irrelevant text.
     "top_k": 64,
+
+    # Sets the maximum length of the response. 1024 tokens is enough for 
+    # a detailed description without getting cut off mid-sentence.
     "max_output_tokens": 1024,
-    "response_mime_type": "application/json", # <--- MAGIC LINE FOR JSON
-    "response_schema": ItemAnalysisV2, # <--- ENFORCES THE SCHEMA
+
+    # Forces the model to output a raw JSON string instead of conversational text. 
+    # This prevents the "Invalid JSON" errors in the mobile app.
+    "response_mime_type": "application/json", 
+
+    # Links the AI output to your Pydantic class (ItemAnalysisV2). 
+    # This guarantees the JSON has the exact keys (label, color, tags, etc.) you need.
+    "response_schema": ItemAnalysisV2, 
 }
 
 # Initialize the Model
@@ -100,7 +117,7 @@ model = genai.GenerativeModel(
 )
 
 # ---------------------------------------------------------
-# 3. HELPER: ROBUST JSON EXTRACTION
+# HELPER: ROBUST JSON EXTRACTION
 # ---------------------------------------------------------
 def extract_json(text):
     """
@@ -143,7 +160,7 @@ def extract_json(text):
 
 
 # ---------------------------------------------------------
-# 3. THE ANALYZE ENDPOINT
+# THE ANALYZE ENDPOINT
 # ---------------------------------------------------------
 @app.post("/analyze")
 async def analyze_image(file: UploadFile = File(...)):
