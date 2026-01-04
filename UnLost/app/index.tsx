@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase'; // Make sure this path points to your file
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from "../constants/theme";
 
 // Tell Supabase to stop auto-refreshing if the app is closed
 AppState.addEventListener('change', (state) => {
@@ -26,10 +27,13 @@ export default function AuthScreen() {
   // State variables
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState(''); // Needed for the Profile trigger
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(true); // Toggle between Login and Sign Up
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // Toggle eye button
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // Toggle eye button
+  const passwordsDoNotMatch = !isLogin && confirmPassword.length > 0 && password !== confirmPassword;
 
   // 1. Validation Logic
   const validateInputs = () => {
@@ -38,19 +42,41 @@ export default function AuthScreen() {
       return false;
     }
 
-    // Check full name length during sign up
     if (!isLogin) {
+
+      // Check Name
       if (!fullName.trim()) {
         Alert.alert('Error', 'Please enter your full name');
         return false;
       }
-    }
+      // USM Email Check
+      const lowerEmail = email.toLowerCase();
+      if (!isLogin && !lowerEmail.endsWith('@student.usm.my')) {
+        Alert.alert('Restricted Access', 'Only USM students (@student.usm.my) can register.');
+        return false;
+      }
+      // Check Confirm Password empty
+      if (!confirmPassword) {
+        Alert.alert('Error', 'Please confirm your password');
+        return false;
+      }
+      // Check Password Match
+      if (password !== confirmPassword) {
+        Alert.alert('Error', 'Passwords do not match');
+        return false;
+      }
 
-    // USM Email Check
-    const lowerEmail = email.toLowerCase();
-    if (!isLogin && !lowerEmail.endsWith('@student.usm.my')) {
-      Alert.alert('Restricted Access', 'Only USM students (@student.usm.my) can register.');
-      return false;
+      // trong Password Constraints
+      // Regex: At least 8 chars, 1 digit, 1 small letter, 1 capital letter, 1 special character
+      const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
+      
+      if (!strongPasswordRegex.test(password)) {
+        Alert.alert(
+          'Weak Password', 
+          'Password must be at least 8 characters long and include:\n• One Uppercase letter\n• One Lowercase letter\n• One Number\n• One Special Character (!@#$%^&*)'
+        );
+        return false;
+      }
     }
     return true;
   };
@@ -72,11 +98,6 @@ export default function AuthScreen() {
   // 3. Sign Up Function
   async function signUpWithEmail() {
     if (!validateInputs()) return;
-    if (!fullName) {
-       Alert.alert('Error', 'Please enter your full name');
-       return;
-    }
-
     setLoading(true);
     
     const { data, error } = await supabase.auth.signUp({
@@ -102,8 +123,8 @@ export default function AuthScreen() {
     <View style={styles.container}>
       {/* Header Section */}
       <View style={styles.header}>
-        <Text style={styles.title}>USM Lost & Found</Text>
-        <Text style={styles.subtitle}>{isLogin ? 'Welcome Back' : 'Student Registration'}</Text>
+        <Text style={styles.title}>UNLOST</Text>
+        <Text style={styles.subtitle}>{isLogin ? 'USM LOST & FOUND SYSTEM' : 'STUDENT REGISTRATION'}</Text>
       </View>
 
       {/* Form Section */}
@@ -126,8 +147,8 @@ export default function AuthScreen() {
               fontSize: 12,
               color: fullName.length > 25 ? '#E67E22' : '#888',
               alignSelf: 'flex-end',
-              marginTop: -10,
-              marginBottom: 10,
+              marginTop: -15,
+              marginBottom: 3,
               marginRight: 5
             }}>
               {fullName.length}/25
@@ -135,6 +156,7 @@ export default function AuthScreen() {
           </View>
         )}
 
+        {/* Email Field */}
         <TextInput
           style={styles.input}
           onChangeText={setEmail}
@@ -144,7 +166,8 @@ export default function AuthScreen() {
           autoCapitalize="none"
           keyboardType="email-address"
         />
-        
+
+        {/* Password Field */}
         <View style={styles.passwordContainer}>
           <TextInput
             style={styles.passwordInput}
@@ -167,6 +190,42 @@ export default function AuthScreen() {
             />
           </TouchableOpacity>
         </View>
+
+        {/* Confirm Password Field */}
+        {!isLogin && (
+          <View>
+            <View style={[
+              styles.passwordContainer, 
+              // Red Border if Mismatch
+              passwordsDoNotMatch ? { borderColor: 'red', borderWidth: 1 } : {}
+            ]}>
+              <TextInput
+                style={styles.passwordInput}
+                onChangeText={setConfirmPassword}
+                value={confirmPassword}
+                placeholder="Confirm Password"
+                placeholderTextColor="#888"
+                secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity 
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
+                style={styles.eyeButton}
+              >
+                <Ionicons 
+                  name={showConfirmPassword ? "eye" : "eye-off"} 
+                  size={24} 
+                  color="#4B2C85" 
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Red Error Text */}
+            {passwordsDoNotMatch && (
+              <Text style={styles.errorText}>Passwords do not match</Text>
+            )}
+          </View>
+        )}
 
         {/* Action Button */}
         <TouchableOpacity 
@@ -199,40 +258,58 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: 'center',
-    backgroundColor: '#F5F7FB', // Light grey background
+    backgroundColor: '#fef7f7ff', // Light grey background
   },
   header: {
-    marginBottom: 40,
+    marginBottom: 26,
     alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontFamily: 'fantasy',
+    fontSize: 55,
     fontWeight: 'bold',
     color: '#4B2C85', // USM Purple-ish
     marginBottom: 10,
   },
   subtitle: {
+    fontFamily: 'serif',
     fontSize: 18,
+    fontWeight: 'bold',
     color: '#666',
   },
   form: {
-    width: '100%',
+    backgroundColor: '#F5F7FB',
+    marginHorizontal: 1,
+    padding: 20,
+    borderRadius: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: '#ffffffff', // Subtle yellow border
   },
   input: {
     backgroundColor: '#fff',
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 25,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.light.purple,
     fontSize: 16,
   },
   button: {
     backgroundColor: '#E67E22', // USM Orange-ish
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 25,
     alignItems: 'center',
     marginTop: 10,
+    shadowColor: '#EA8F79',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 5,
   },
   buttonText: {
     color: '#fff',
@@ -255,10 +332,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 25,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.light.purple,
   },
   passwordInput: {
     flex: 1, 
@@ -267,5 +344,12 @@ const styles = StyleSheet.create({
   },
   eyeButton: {
     paddingHorizontal: 15,
-},
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginBottom: 20, // Push the button down slightly
+    marginTop: -13,   // Pull up closer to the input
+    marginLeft: 5,
+  }
 });
