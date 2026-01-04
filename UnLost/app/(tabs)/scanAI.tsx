@@ -286,6 +286,7 @@ export default function ScanAI() {
           location: locString,
           description: "The AI could not identify this item. Please describe it manually.",
         });
+        Alert.alert("AI model failed to analyze the image. Please enter the tags and descriptions manually.");
       }
     } catch (error) {
       // CASE 4: Network Error. Ensure the app doesn't crash and still shows the photo.
@@ -296,6 +297,7 @@ export default function ScanAI() {
         location: locString,
         description: "Network failed. Please provide a manual description.",
       });
+      Alert.alert("The system failed to communicate with the AI model. Please enter the tags and descriptions manually.");
     } finally {
       setLoading(false); // Stop the "Analyzing..." spinner
     }

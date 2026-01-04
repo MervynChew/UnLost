@@ -187,148 +187,157 @@ export function AnalysisResult({
   return (
     <View style={styles.mainContainer}>
       <KeyboardAvoidingView 
-    style={{ flex: 1 }} 
-    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-  >
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Header
-          title="Create Post"
-          subtitle="Help the item find back their own parent"
-        ></Header>
-
-        {/* The Annotated Image from Server */}
-        <View style={styles.imageCard}>
-          {/* Layer A: Blurred Background (Fills the empty space) */}
-          <Image
-            source={{ uri: imageUri }}
-            style={[StyleSheet.absoluteFill, styles.imageBackground]}
-            blurRadius={30} // Makes it blurry
-            resizeMode="cover"
-          />
-
-          {/* Layer B: Dark Overlay (Makes the main image pop) */}
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: "rgba(0,0,0,0.2)" },
-            ]}
-          />
-
-          {/* Layer C: The Main Sharp Image */}
-          <Image
-            source={{ uri: imageUri }}
-            style={styles.resultImage}
-            resizeMode="contain"
-          />
-        </View>
-
-        <Seperator title="Tag"/>
-
-        <View style={styles.tagsWrapper}>
-          {validTags.map((tag, index) => (
-            <View key={index} style={styles.tagBadge}>
-              <Text style={styles.tagText}>{tag.toUpperCase()}</Text>
-            </View>
-          ))}
-        </View>
-
-        <ButtonOrange
-          onPress={() => setModalVisible(true)}
-          title="Edit tag"
-          variant="primary"
-          style={styles.editButton}
-        />
-
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Manage Tags</Text>
+          <Header
+            title="Create Post"
+            subtitle="Help the item find back their own parent"
+          ></Header>
 
-              {/* List of current tags */}
-              <View style={styles.modalTagWrapper}>
-                {editableTags.map((tag, index) => (
-                  <View key={index} style={styles.modalTag}>
-                    <Text style={styles.modalTagText}>{tag}</Text>
-                    <TouchableOpacity onPress={() => handleRemoveTag(index)}>
-                      <Ionicons
-                        name="close-circle"
-                        size={20}
-                        color={Colors.light.purple}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                {editableTags.length === 0 && (
-                  <Text style={{ color: "#999" }}>No tags yet.</Text>
-                )}
-              </View>
+          {/* The Annotated Image from Server */}
+          <View style={styles.imageCard}>
+            {/* Layer A: Blurred Background (Fills the empty space) */}
+            <Image
+              source={{ uri: imageUri }}
+              style={[StyleSheet.absoluteFill, styles.imageBackground]}
+              blurRadius={30} // Makes it blurry
+              resizeMode="cover"
+            />
 
-              {/* Input to add new tag */}
-              <View style={styles.addTagRow}>
-                <TextInput
-                  style={styles.addTagInput}
-                  placeholder="Add new tag..."
-                  value={newTagText}
-                  onChangeText={handleAddTagLength}
-                />
-                <TouchableOpacity
-                  onPress={handleAddTag}
-                  style={styles.addTagBtn}
-                >
-                  <Ionicons name="add" size={24} color="white" />
-                </TouchableOpacity>
-              </View>
+            {/* Layer B: Dark Overlay (Makes the main image pop) */}
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: "rgba(0,0,0,0.2)" },
+              ]}
+            />
 
-              <ButtonOrange
-                title="Done"
-                onPress={() => setModalVisible(false)}
-                variant="primary"
-                style={{ alignSelf: "center", marginTop: 20, width: "100%" }}
-              />
-            </View>
+            {/* Layer C: The Main Sharp Image */}
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.resultImage}
+              resizeMode="contain"
+            />
           </View>
-        </Modal>
 
-        <Seperator title="Description"/>
+          <Seperator title="Tag"/>
 
-        <View style={styles.descriptionBox}>
-          <TextInput
-            style={styles.inputDescriptionBox}
-            placeholder="Enter the description here..."
-            onChangeText={(newText) => setDescription(newText)}
-            value={description}
-            multiline={true} // ✅ Allow multiple lines
-            textAlignVertical="top"
-            maxLength={300}
-          />
-          <Text style={styles.inputDescriptionCounter}>{description.length} / 300</Text>
-        </View>
-
-        <View style={styles.bottomButton}>
-          {/* 3. Action Button */}
+          <View style={styles.tagsWrapper}>
+            {validTags.map((tag, index) => (
+              <View key={index} style={styles.tagBadge}>
+                <Text style={styles.tagText}>{tag.toUpperCase()}</Text>
+              </View>
+            ))}
+          </View>
 
           <ButtonOrange
-            onPress={handleSavePost}
-            title="Submit"
-            variant="secondary"
-            style={styles.submitButton}
+            onPress={() => setModalVisible(true)}
+            title="Edit tag"
+            variant="primary"
+            style={styles.editButton}
           />
-        </View>
-        <Footer />
-      </ScrollView>
+
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={modalVisible}
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Manage Tags</Text>
+
+                {/* List of current tags */}
+                <View style={styles.modalTagWrapper}>
+                  {editableTags.map((tag, index) => (
+                    <View key={index} style={styles.modalTag}>
+                      <Text style={styles.modalTagText}>{tag}</Text>
+                      <TouchableOpacity onPress={() => handleRemoveTag(index)}>
+                        <Ionicons
+                          name="close-circle"
+                          size={20}
+                          color={Colors.light.purple}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {editableTags.length === 0 && (
+                    <Text style={{ color: "#999" }}>No tags yet.</Text>
+                  )}
+                </View>
+
+                {/* Input to add new tag */}
+                <View style={styles.addTagRow}>
+                  <TextInput
+                    style={styles.addTagInput}
+                    placeholder="Add new tag..."
+                    value={newTagText}
+                    onChangeText={handleAddTagLength}
+                  />
+                  <TouchableOpacity
+                    onPress={handleAddTag}
+                    style={styles.addTagBtn}
+                  >
+                    <Ionicons name="add" size={24} color="white" />
+                  </TouchableOpacity>
+                </View>
+
+                <ButtonOrange
+                  title="Done"
+                  onPress={() => setModalVisible(false)}
+                  variant="primary"
+                  style={{ alignSelf: "center", marginTop: 20, width: "100%" }}
+                />
+
+              </View>
+            </View>
+          </Modal>
+
+          <Seperator title="Description"/>
+
+          <View style={styles.descriptionBox}>
+            <TextInput
+              style={styles.inputDescriptionBox}
+              placeholder="Enter the description here..."
+              onChangeText={(newText) => setDescription(newText)}
+              value={description}
+              multiline={true} // ✅ Allow multiple lines
+              textAlignVertical="top"
+              maxLength={300}
+            />
+            <Text style={styles.inputDescriptionCounter}>{description.length} / 300</Text>
+          </View>
+
+          <View style={styles.bottomButton}>
+            {/* 3. Action Button */}
+
+            <ButtonOrange
+              onPress={handleSavePost}
+              disabled={isSubmitting}
+              title="Submit"
+              variant="secondary"
+              style={styles.submitButton}
+            />
+          </View>
+          <Footer />
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <View style={styles.fixedFooter}>
         <BackButton onPress={onScanAgain} />
       </View>
+
+      {isSubmitting && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#00FF9D" />
+          <Text style={styles.loadingText}>Submitting Post</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -609,5 +618,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
+  },
+  // --- Loading ---
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.7)", // Semi-transparent dark
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 20,
+  },
+  loadingText: {
+    color: Colors.light.purple,
+    marginTop: 15,
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 1,
   },
 });
