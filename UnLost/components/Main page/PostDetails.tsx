@@ -322,6 +322,68 @@ export default function PostDetails({ propId, onClose }: Props) {
     }
   }, [hasScheduleRequest, scheduleRequest]);
 
+  // fallback if cron is close/not work
+  useEffect(() => {
+    const checkAutoComplete = async () => {
+      if (!hasScheduleRequest || !scheduleRequest) return;
+      
+      // Only check if status is 'accepted' and both attended
+      if (
+        scheduleRequest.status === 'accepted' &&
+        scheduleRequest.finder_attendance &&
+        scheduleRequest.owner_attendance &&
+        scheduleRequest.meet_date &&
+        scheduleRequest.meet_time
+      ) {
+        const now = new Date();
+        const meetingDateTime = new Date(`${scheduleRequest.meet_date}T${scheduleRequest.meet_time}`);
+        const twentyFourHoursAfter = new Date(meetingDateTime.getTime() + 24 * 60 * 60 * 1000);
+        
+        // If 24 hours have passed, auto-complete
+        if (now >= twentyFourHoursAfter) {
+          console.log('🎉 Auto-completing meeting (24h passed)');
+          
+          try {
+            // Update schedule_request
+            const { error: scheduleError } = await supabase
+              .from('schedule_requests')
+              .update({ status: 'completed' })
+              .eq('request_id', scheduleRequest.request_id);
+
+            if (scheduleError) {
+              console.error('❌ Error auto-updating schedule:', scheduleError);
+              return;
+            }
+
+            // Update post - using 'id' not 'postId'
+            const { error: postError } = await supabase
+              .from('posts')
+              .update({
+                status: 'claimed',
+                claim_date: new Date().toISOString()
+              })
+              .eq('post_id', id); 
+
+            if (postError) {
+              console.error('❌ Error auto-updating post:', postError);
+              return;
+            }
+
+            console.log('✅ Auto-completed successfully');
+            
+            // Refresh data
+            await fetchScheduleRequest();
+            await fetchPostDetails();
+          } catch (err) {
+            console.error('❌ Error in auto-complete:', err);
+          }
+        }
+      }
+    };
+
+    checkAutoComplete();
+  }, [hasScheduleRequest, scheduleRequest, id]); 
+
   useEffect(() => {
     fetchPostDetails();
     getViewer();
@@ -773,7 +835,7 @@ export default function PostDetails({ propId, onClose }: Props) {
           return;
         }
 
-        Alert.alert("Success", "Request Sent! The post owner will be notified.");
+        Alert.alert("Success", "Request Sent! The finder will be notified.");
         setRescheduleMeeting(false);
         await fetchScheduleRequest();
       }
@@ -1320,7 +1382,7 @@ export default function PostDetails({ propId, onClose }: Props) {
                             />
                             <Text style={styles.statusTitle}>Waiting for Confirmation</Text>
                             <Text style={styles.statusSubtitle}>
-                              The post owner will review your request.
+                              The finder will review your request.
                             </Text>
                             <View style={styles.detailsBox}>
                               <View style={styles.detailRow}>
@@ -1374,7 +1436,7 @@ export default function PostDetails({ propId, onClose }: Props) {
                             />
                             <Text style={styles.statusTitle}>New Time Proposed</Text>
                             <Text style={styles.statusSubtitle}>
-                              The post owner suggested a new meeting time.
+                              The finder suggested a new meeting time.
                             </Text>
                             <View style={styles.detailsBox}>
                               <View style={styles.detailRow}>
