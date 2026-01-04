@@ -178,6 +178,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   searchRow: {
+    backgroundColor: 'white',
     paddingHorizontal: 20,
     paddingBottom: 10,
   },

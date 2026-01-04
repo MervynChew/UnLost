@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View, StatusBar, FlatList, Modal, Animated, Text}
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from "../../constants/theme";
 import ProfileScreen from '../../app/profile'; 
 import SearchBar from "../../components/Main page/searchBar";
 
@@ -408,8 +409,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     paddingTop: '-15%',       // Adjust to match your SearchBar design
     paddingBottom: 12.5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.light.icon
   },
   listContent: {
     paddingBottom: 100, // Prevent last post from being covered by the navigation bar

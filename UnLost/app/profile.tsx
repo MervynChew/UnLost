@@ -11,7 +11,7 @@ import { decode } from "base64-arraybuffer";
 import { Colors } from "../constants/theme";
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import PostDetails from '@/components/Main page/PostDetails'; // Adjust path if needed
+import PostDetails from '@/components/Main page/PostDetails';
 
 type MyPost = {
   post_id: number; 

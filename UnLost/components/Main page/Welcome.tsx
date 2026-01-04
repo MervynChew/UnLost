@@ -22,13 +22,17 @@ const styles = StyleSheet.create({
     width: '70%',
   },
   welcome: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: Colors.light.purple,
+    color: Colors.light.yellow,
+    textShadowColor: 'black', // Outline color
+    textShadowRadius: 6, // Sharpness
   },
   user: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.light.orange,
+    color: Colors.light.purple,
+    textShadowColor: 'black', // Outline color
+    textShadowRadius: 2, // Sharpness
   },
 })
