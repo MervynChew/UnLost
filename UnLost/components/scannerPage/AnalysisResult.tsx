@@ -134,7 +134,7 @@ export function AnalysisResult({
         user_id: session.user.id,
         post_image: urlData.publicUrl,
         missing_location: location,
-        tags: editableTags,
+        tags: validTags,
         description: description,
         found_date: new Date().toISOString(),
         status: "lost",
