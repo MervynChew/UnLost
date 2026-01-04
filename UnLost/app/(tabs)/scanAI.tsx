@@ -135,17 +135,18 @@ export default function ScanAI() {
   // --- Logic: Take Picture ---
   const handleCapture = async () => {
     if (cameraRef.current && !loading) {
-      setLoading(true);
+      setLoading(true); // Start the loading state
       try {
-        const photoPromise = await cameraRef.current.takePictureAsync({
+        // Step 1: Request the photo
+        const photoPromise = cameraRef.current.takePictureAsync({
           base64: false,
           quality: 0.8,
         });
 
-        // Start GPS (Run in parallel!)
+        // Step 2: Start GPS tracking (Run in parallel!)
         const locationPromise = getPreciseLocation();
 
-        // 3. Wait for both
+        // Step 3: Wait for BOTH to finish at the same time
         const [photo, locationString] = await Promise.all([photoPromise, locationPromise]);
 
         if (photo?.uri) {
@@ -203,6 +204,7 @@ export default function ScanAI() {
 
   // --- Logic: Send to API ---
   const sendToBackend = async (uri: string, locString: string) => {
+    // Prepare the first data package (Multi-part form) for YOLO detection
     const formData1 = new FormData();
     // @ts-ignore
     formData1.append("file", {
@@ -215,7 +217,7 @@ export default function ScanAI() {
     try {
       console.log("Step 1: Detecting Object...");
       
-      // --- CALL 1: DETECTION (Fast) ---
+      // EXECUTION 1: Call the high-speed YOLOv8 detection endpoint
       const response = await fetch(API_URL, {
         method: "POST",
         body: formData1,
@@ -223,32 +225,25 @@ export default function ScanAI() {
       });
       const data = await response.json();
 
-      // 🛑 STOP HERE if no object is found // Correct here
-      // if (!data.found) {
-      //   Alert.alert("No Object Found", "The AI didn't see an item. Try moving closer.");
-      //   setLoading(false);
-      //   return; // Don't run the next code
-      // }
-      
+      // Feedback logic: Notify the user if YOLO missed the item
       if (!data.found) {
-        Alert.alert("No Object Found", "The Machine Learning Model didn't see an item. Sending to Gemini model for fallback analysis and tagging.");
-      }
-      else {
-        console.log("Object found! Sending to Gemini for image anaysis")
+        Alert.alert("No Object Found", "The Machine Learning Model didn't see an item. Sending to Gemini for fallback analysis.");
+      } else {
+        console.log("Object found! Moving to deep analysis.");
       }
 
       console.log("Step 2: Analyzing with Gemini...");
 
+      // Prepare the second data package for the Gemini Reasoning API
       const formData2 = new FormData();
-    // @ts-ignore
+      // @ts-ignore
       formData2.append("file", {
         uri: uri,
         type: "image/jpeg",
         name: "capture.jpg",
       });
 
-      // --- CALL 2: ANALYSIS (Slow) ---
-      // Only runs if Call 1 succeeded
+      // EXECUTION 2: Call the Gemini endpoint for description and safety checks
       const responseGemini = await fetch(GEMINI, {
         method: "POST",
         body: formData2,
@@ -256,51 +251,53 @@ export default function ScanAI() {
       });
       const dataGemini = await responseGemini.json();
 
+      // Privacy Check: Verify if the AI flagged the item as private (e.g., Bank Cards)
       if (dataGemini?.data?.sentitive?.toLowerCase() === 'sensitive') { 
-        // Note: Check if your backend is 'sentitive' or 'sensitive'
-        Alert.alert("The image contains sensitive information");
+        Alert.alert("Privacy Warning", "The image may contain sensitive information.");
         setIsSensitive(true);
       }
 
+      // --- LOGIC TREE: DECIDE WHAT TO SHOW THE USER ---
+
       if (data.found) {
-      // SUCCESS: YOLO found it
+        // CASE 1: YOLO succeeded. We show the AI-boxed image and Gemini's description.
+        setResult({
+          image: `data:image/jpeg;base64,${data.image_base64}`,
+          label: data.label ?? "Item Detected",
+          color: data.color ?? "Unknown",
+          location: locString,
+          description: dataGemini.success ? dataGemini.data.description : "Analysis unavailable.",
+        });
+      } else if (dataGemini.success) {
+        // CASE 2: YOLO failed, but Gemini found it. Use Gemini's tags as a fallback.
+        setResult({
+          image: uri, 
+          label: dataGemini.data.tags?.[0] || "Unidentified",
+          color: dataGemini.data.color || "Unknown",
+          location: locString,
+          description: dataGemini.data.description,
+        });
+      } else {
+        // CASE 3: Total AI failure. Allow the user to enter data manually.
+        setResult({
+          image: uri,
+          label: "Manual Entry Required",
+          color: "Unknown",
+          location: locString,
+          description: "The AI could not identify this item. Please describe it manually.",
+        });
+      }
+    } catch (error) {
+      // CASE 4: Network Error. Ensure the app doesn't crash and still shows the photo.
       setResult({
-        image: `data:image/jpeg;base64,${data.image_base64}`,
-        label: data.label ?? "Item Detected",
-        color: data.color ?? "Unknown",
-        location: locString,
-        description: dataGemini.success ? dataGemini.data.description : "Analysis unavailable.",
-      });
-    } else if (dataGemini.success) {
-      // FALLBACK 1: Gemini found it
-      setResult({
-        image: uri, // <--- Using your local device image URI
-        label: dataGemini.data.tags?.[0] || "Unidentified",
-        color: dataGemini.data.color || "Unknown",
-        location: locString,
-        description: dataGemini.data.description,
-      });
-    } else {
-      // FALLBACK 2: Both failed, but we still show the result page
-      setResult({
-        image: uri, // <--- Using local URI
-        label: "Manual Entry Required",
+        image: uri,
+        label: "Connection Error",
         color: "Unknown",
         location: locString,
-        description: "The AI models couldn't identify this. Please provide a manual description.",
+        description: "Network failed. Please provide a manual description.",
       });
-    }
-  } catch (error) {
-    // ERROR FALLBACK: Network or Server Error
-    setResult({
-      image: uri, // <--- Still show the user's photo!
-      label: "Manual Entry Required",
-      color: "Unknown",
-      location: locString,
-      description: "Analysis failed due to a connection error. Please check your internet or manually provide a description.",
-    });
-  } finally {
-      setLoading(false);
+    } finally {
+      setLoading(false); // Stop the "Analyzing..." spinner
     }
   };
 
@@ -317,26 +314,9 @@ export default function ScanAI() {
     );
   }
 
-  // 1. If we have a result, show the Child Component
-  // if (result) {
-  //   return (
-  //     <AnalysisResult
-  //       // FIX 3: TypeScript Safety Check (?? "")
-  //       imageUri={result.image ?? ""}
-  //       label={Array.isArray(result.label) ? result.label : [result.label]}
-  //       color={result.color}
-  //       location={result.location}
-  //       descriptionGemini={result.description}
-  //       isSensitive={isSensitive}
-  //       onScanAgain={() => setResult(null)}
-  //     />
-  //   );
-  // }
-
   if (result) {
     return (
       <AnalysisResult
-        // FIX 3: TypeScript Safety Check (?? "")
         imageUri={result.image ?? ""}
         label={Array.isArray(result.label) ? result.label : [result.label]}
         color={result.color}
