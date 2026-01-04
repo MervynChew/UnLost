@@ -103,6 +103,17 @@ export default function Attendance({
   const handleToggleAttendance = async (value: boolean) => {
     if (isUpdating) return;
 
+    // Check if user is already marked as present
+    const currentlyPresent = isPostOwner ? finderPresent : ownerPresent;
+    
+    if (currentlyPresent) {
+      Alert.alert(
+        'Already Marked', 
+        'You have already marked yourself as attended.'
+      );
+      return;
+    }
+
     if (!canToggleAttendance()) {
       if (meetingTimePassed) {
         Alert.alert(
@@ -118,57 +129,64 @@ export default function Attendance({
       return;
     }
 
-    setIsUpdating(true);
+    // Show confirmation alert before toggling
+    Alert.alert(
+      'Confirm Mark Attendance',
+      'Please ensure you are physically present at the meeting point. Marking false attendance may result in reports of dishonesty. Are you sure you want to mark yourself as attended?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            // Do nothing, user cancelled
+          }
+        },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            setIsUpdating(true);
 
-    try {
-      const updateField = isPostOwner ? 'finder_attendance' : 'owner_attendance';
-      
-      console.log(`🔄 Updating ${updateField} to ${value}`);
-      
-      const { data, error } = await supabase
-        .from('schedule_requests')
-        .update({ [updateField]: value })
-        .eq('request_id', scheduleRequestId)
-        .select();
+            try {
+              const updateField = isPostOwner ? 'finder_attendance' : 'owner_attendance';
+              
+              console.log(`🔄 Updating ${updateField} to ${value}`);
+              
+              const { data, error } = await supabase
+                .from('schedule_requests')
+                .update({ [updateField]: value })
+                .eq('request_id', scheduleRequestId)
+                .select();
 
-      if (error) {
-        console.error('❌ Error updating attendance:', error);
-        Alert.alert('Error', `Failed to update attendance: ${error.message}`);
-        // Revert optimistic update
-        if (isPostOwner) {
-          setFinderPresent(!value);
-        } else {
-          setOwnerPresent(!value);
+              if (error) {
+                console.error('❌ Error updating attendance:', error);
+                Alert.alert('Error', `Failed to update attendance: ${error.message}`);
+                return;
+              }
+
+              if (!data || data.length === 0) {
+                Alert.alert('Error', 'Failed to update attendance. Please try again.');
+                return;
+              }
+
+              console.log('✅ Attendance updated successfully');
+              
+              // Optimistic update - real-time will sync this across devices
+              if (isPostOwner) {
+                setFinderPresent(value);
+              } else {
+                setOwnerPresent(value);
+              }
+
+            } catch (err) {
+              console.error('❌ Unexpected error updating attendance:', err);
+              Alert.alert('Error', 'Something went wrong. Please try again.');
+            } finally {
+              setIsUpdating(false);
+            }
+          }
         }
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        Alert.alert('Error', 'Failed to update attendance. Please try again.');
-        // Revert optimistic update
-        if (isPostOwner) {
-          setFinderPresent(!value);
-        } else {
-          setOwnerPresent(!value);
-        }
-        return;
-      }
-
-      console.log('✅ Attendance updated successfully');
-      
-      // Optimistic update - real-time will sync this across devices
-      if (isPostOwner) {
-        setFinderPresent(value);
-      } else {
-        setOwnerPresent(value);
-      }
-
-    } catch (err) {
-      console.error('❌ Unexpected error updating attendance:', err);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-    } finally {
-      setIsUpdating(false);
-    }
+      ]
+    );
   };
 
   const handleEditDescription = () => {
