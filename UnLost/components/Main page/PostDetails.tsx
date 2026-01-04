@@ -10,6 +10,7 @@ import { ButtonOrange } from "../General/buttonOrange";
 import BackButton from "../General/backButton";
 import Footer from "../General/footer";
 import Seperator from "../General/sectionSeperator";
+import ProfileScreen from '../../app/profile'; 
 import PostPerson from "./PostPerson";
 import Confirmation from "./Confirmation";
 import ClaimedBy from "./ClaimedBy";
@@ -85,6 +86,9 @@ export default function PostDetails({ propId, onClose }: Props) {
   const [isItemCompleted, setIsItemCompleted] = useState(false);
 
   const [originalRequesterId, setOriginalRequesterId] = useState<string>("");
+
+  // Store IDs of users that may get viewed by the current logged in user
+  const [viewProfileId, setViewProfileId] = useState<string | null>(null);
 
   const fetchPostDetails = async () => {
     if (!id) return;
@@ -688,52 +692,9 @@ export default function PostDetails({ propId, onClose }: Props) {
           await fetchScheduleRequest();
           return;
         }
-        
+
         // ============================================
-        // CASE 1B: Meeting DELETED - Create NEW request
-        // ============================================
-        if (currentStatus === "deleted") {
-          console.log(`🆕 Creating NEW request (previous was deleted)`);
-
-          const requestOwnerId = scheduleRequest.owner_id;
-          
-          const insertData = {
-            post_id: Number(id),
-            owner_id: requestOwnerId,
-            location: meetupPlace,
-            meet_date: localDateString,
-            meet_time: localTimeString,
-            status: "pending",
-            last_modified_by: viewId,
-            finder_attendance: false,
-            owner_attendance: false,
-            finder_description: null,
-            owner_description: null,
-          };
-
-          const { data, error } = await supabase
-            .from("schedule_requests")
-            .insert(insertData)
-            .select();
-
-          if (error) {
-            Alert.alert("Error", `Failed to create new request: ${error.message}`);
-            return;
-          }
-
-          if (!data || data.length === 0) {
-            Alert.alert("Error", "Failed to create the new request. Please try again.");
-            return;
-          }
-
-          Alert.alert("Success", "New meeting request created!");
-          setRescheduleMeeting(false);
-          await fetchScheduleRequest();
-          return;
-        }
-        
-        // ============================================
-        // CASE 1C: Meeting PENDING or ACCEPTED - UPDATE existing
+        // CASE 1B: Meeting PENDING or ACCEPTED - UPDATE existing
         // ============================================
         if (currentStatus === "pending" || currentStatus === "accepted") {
           console.log(`🔄 Updating existing request (status: ${currentStatus})`);
@@ -1138,6 +1099,23 @@ export default function PostDetails({ propId, onClose }: Props) {
           />
         </View>
 
+        {/* Expire Countdown Section */}
+        {post.expire_countdown && (
+          <View style={styles.expirationContainer}>
+            <Ionicons name="time-outline" size={18} color="#666" style={styles.expirationIcon} />
+            <Text style={styles.expirationText}>
+              Post expires on {new Date(post.expire_countdown).toLocaleString('en-MY', { 
+                timeZone: 'Asia/Kuala_Lumpur',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </Text>
+          </View>
+        )}
+
         {/* Posted by Section */}
         <View 
           style={styles.sectionView}
@@ -1147,10 +1125,15 @@ export default function PostDetails({ propId, onClose }: Props) {
             setSectionOffsets(prev => ({ ...prev, "Posted by": y }));
           }}
         >
-          <View style={styles.sectionView}>
-            <Seperator title="Posted by" />
-            <PostPerson id={id} />
-          </View>
+          <Seperator title="Posted by" />
+            <TouchableOpacity onPress={() => setOwnerId(ownerId) /* Force refresh or just open modal */}>
+                {/* Since we can't edit PostPerson, we wrap it. 
+                   We use setViewProfileId to trigger the modal.
+                */}
+                <TouchableOpacity onPress={() => setViewProfileId(ownerId)}>
+                   <PostPerson id={id} />
+                </TouchableOpacity>
+            </TouchableOpacity>
         </View>
 
         {/* Tags Section */}
@@ -1866,12 +1849,45 @@ export default function PostDetails({ propId, onClose }: Props) {
             }}
           >
             <Seperator title="Claimed By"/>
-            <ClaimedBy scheduleRequestId={scheduleRequest.request_id} />
+            <ClaimedBy 
+                scheduleRequestId={scheduleRequest.request_id} 
+                onPress={() => {
+                   // We need to fetch the claimer ID. 
+                   // ClaimedBy fetches it internally, but we have scheduleRequest.owner_id here!
+                   setViewProfileId(scheduleRequest.owner_id);
+                }}
+            />
+            {/* Add Text Informing User to Contact Admins in case of False Claims */}
+            <Text style={{
+                color: 'black', 
+                textAlign: 'center', 
+                marginTop: 15, 
+                paddingHorizontal: 20,
+                fontSize: 14,
+                fontStyle: 'italic'
+            }}>
+                Someone has claimed the item. If you think this is a false claim, tap on the claimer&apos;s profile icon to get his USM email and contact our admins!
+            </Text>
           </View>
         )}
 
         <Footer />
       </ScrollView>
+
+      {/* Nested Profile Modal */}
+      {viewProfileId && (
+        <Modal 
+            visible={true} 
+            animationType="slide" 
+            onRequestClose={() => setViewProfileId(null)}
+            statusBarTranslucent={true}
+        >
+            <ProfileScreen 
+                userId={viewProfileId} 
+                onClose={() => setViewProfileId(null)} 
+            />
+        </Modal>
+      )}
 
       <View style={styles.fixedFooter}>
         <BackButton onPress={handleBack} />
@@ -1929,6 +1945,29 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 18,
     opacity: 0.9,
+  },
+  expirationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.dark.icon,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginTop: 5,
+    marginBottom: 15,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  expirationIcon: {
+    marginRight: 8,
+    color: '#ffffffff'
+  },
+  expirationText: {
+    color: '#ffffffff',
+    fontSize: 14,
+    fontWeight: '500',
   },
   tag: {
     color: "black",
@@ -2066,7 +2105,6 @@ const styles = StyleSheet.create({
   scheduleSection: { width: "95%" },
   sectionView: {
     width: "100%",             // This is the calculation for the 5% margin
-    alignItems: "center", // Pushes the Title and Content to the start of the box
     marginVertical: 12,
     // NO left or absolute positioning here
   },

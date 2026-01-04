@@ -21,12 +21,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   welcome: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: Colors.light.purple,
   },
   user: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: Colors.light.orange,
   },
