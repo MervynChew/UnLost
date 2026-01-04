@@ -10,12 +10,13 @@ import Welcome from "../../components/Main page/Welcome";
 import Profile from "@/components/Main page/Profile";
 import Post from "@/components/Main page/Post"
 import PostDetails from "@/components/Main page/PostDetails";
-import { supabase } from "../../lib/supabase"; // Adjust
+import { supabase } from "../../lib/supabase";
 
 export default function HomeScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const [username, setUsername] = useState('User');
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [searchTags, setSearchTags] = useState<string[]>([]);    // Search tags state
   const [statusFilter, setStatusFilter] = useState('All Items'); // Status filter state
@@ -23,7 +24,20 @@ export default function HomeScreen() {
 
   // Animation State
   const scrollY = useRef(new Animated.Value(0)).current;
-  const [welcomeHeight, setWelcomeHeight] = useState(0); // Default height
+
+  // Safe area constant
+  const SAFE_TOP = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 47;
+
+  // Interpolation for Sticky Search Bar
+  // When scroll is 0, push SearchBar down by 'welcomeHeight'.
+  // When scroll matches 'welcomeHeight', push SearchBar down by 0 (Sticks search bar to top)
+  // Inside your HomeScreen component
+  const WELCOME_ROW_HEIGHT = 150; // Welcome Row Height
+  const searchBarTranslateY = scrollY.interpolate({
+    inputRange: [0, WELCOME_ROW_HEIGHT || 100],
+    outputRange: [WELCOME_ROW_HEIGHT - 40, 0], // Adjust height of search bar initially
+    extrapolate: 'clamp',
+  });
 
   // Track the exact height of the search bar (including tags)
   const [searchBarHeight, setSearchBarHeight] = useState(60);
@@ -44,7 +58,7 @@ export default function HomeScreen() {
     
     const { data, error } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, profile_picture')
       .eq('id', session.user.id)
       .single(); // .single() gives you one object instead of an array
   
@@ -52,11 +66,26 @@ export default function HomeScreen() {
     if (error) {
       console.log("Error fetching profile:", error);
     } else if (data) {
-      // Use 'full_name' because that is what you selected above
-      setUsername(data.full_name);
+      // Use 'full_name' as from profiles table
+      console.log("✅ Fetched username:", data.full_name);
+
+      // If full name is too long, only the first word is taken to display on main page
+      let displayName = data.full_name;
+      if (displayName.length > 16) { // For names over 16 characters
+        // Get only the first word
+        displayName = displayName.split(' ')[0];
+        console.log("📏 Username truncated to:", displayName);
+      }
+      setUsername(displayName);
+      setProfilePicture(data.profile_picture);
     }
   };
-  
+
+  const handleProfileUpdate = useCallback(() => {
+    console.log("🔄 Profile updated! Refreshing home screen...");
+    getProfile();
+  }, []);
+
   // Handle search with tags and status
   const handleSearchChange = (tags: string[], status: string) => {
     setSearchTags(tags);
@@ -133,13 +162,14 @@ export default function HomeScreen() {
     statusFilterRef.current = statusFilter;
   }, [statusFilter]);
 
+  // Initial data fetch
   useEffect(() => {
     getProfile();
     fetchPosts();
-  }, [searchTags, statusFilter]); // Refetch when tags or status change
+  }, [searchTags, statusFilter]);
 
   useEffect(() => {
-  // Create the subscription channel
+  // Create the real-time subscription channel
   const postSubscription = supabase
     .channel('public:posts') // Look at the 'posts' table from supabase in 'public' schema
     .on(
@@ -245,9 +275,25 @@ export default function HomeScreen() {
           }]
         }
       ]}>
-        <Welcome name={username} />
-        <Profile onPress={() => setProfileModalVisible(true)} />
+         <Welcome name={username} />
+        <Profile 
+          profilePicture={profilePicture} 
+          onPress={() => setProfileModalVisible(true)} 
+        />
       </Animated.View>
+
+      {/* Profile Modal - Opens profile page in immersive mode without refreshing home */}
+      <Modal
+        visible={profileModalVisible}
+        animationType="slide"
+        onRequestClose={() => setProfileModalVisible(false)}
+        statusBarTranslucent={true}
+      >
+        <ProfileScreen 
+          onClose={() => setProfileModalVisible(false)}
+          onProfileUpdate={handleProfileUpdate}
+        />
+      </Modal>
 
       {/* White Shield: Covers the gap caused by immersive status bar, to hide posts when they are above search bar */}
       <View style={{
@@ -332,16 +378,6 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Profile Modal - Opens profile in immersive mode without refreshing home */}
-      <Modal
-        visible={profileModalVisible}
-        animationType="slide"
-        onRequestClose={() => setProfileModalVisible(false)}
-        statusBarTranslucent={true}
-      >
-        <ProfileScreen onClose={() => setProfileModalVisible(false)} />
-      </Modal>
-
       {/* Fallback modal if post not found in list yet */}
       {selectedPostId !== null && !posts.find(p => p.post_id === selectedPostId) && (
         <Modal
@@ -368,7 +404,7 @@ const styles = StyleSheet.create({
   // Welcome Section Styles
   welcomeRow: {
     backgroundColor: 'white',
-    marginTop: '7%',          // Space from top of screen
+    marginTop: '8%',          // Space from top of screen
     flexDirection: 'row',      // Align side-by-side
     justifyContent: 'space-between', // <--- PUSHES THEM APART
     alignItems: 'center',      // Vertically center them

@@ -11,6 +11,7 @@ import {
   Image
 } from 'react-native';
 import { supabase } from '../lib/supabase'; // Make sure this path points to your file
+import { Ionicons } from '@expo/vector-icons';
 
 // Tell Supabase to stop auto-refreshing if the app is closed
 AppState.addEventListener('change', (state) => {
@@ -28,6 +29,7 @@ export default function AuthScreen() {
   const [fullName, setFullName] = useState(''); // Needed for the Profile trigger
   const [loading, setLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(true); // Toggle between Login and Sign Up
+  const [showPassword, setShowPassword] = useState(false);
 
   // 1. Validation Logic
   const validateInputs = () => {
@@ -35,7 +37,15 @@ export default function AuthScreen() {
       Alert.alert('Error', 'Please fill in all fields');
       return false;
     }
-    
+
+    // Check full name length during sign up
+    if (!isLogin) {
+      if (!fullName.trim()) {
+        Alert.alert('Error', 'Please enter your full name');
+        return false;
+      }
+    }
+
     // USM Email Check
     const lowerEmail = email.toLowerCase();
     if (!isLogin && !lowerEmail.endsWith('@student.usm.my')) {
@@ -74,8 +84,8 @@ export default function AuthScreen() {
       password: password,
       options: {
         data: {
-          full_name: fullName, // This gets sent to your 'profiles' table via the SQL trigger!
-        },
+          full_name: fullName.trim(), // This gets sent to your 'profiles' table via the SQL trigger!
+        },                            // Trim excludes leading and ending whitespaces if any
       },
     });
 
@@ -101,14 +111,28 @@ export default function AuthScreen() {
         
         {/* Only show Name field if Registering */}
         {!isLogin && (
-          <TextInput
-            style={styles.input}
-            onChangeText={setFullName}
-            value={fullName}
-            placeholder="Full Name (e.g. Ali bin Abu)"
-            placeholderTextColor="#888"
-            autoCapitalize="words"
-          />
+          <View>
+            <TextInput
+              style={styles.input}
+              onChangeText={setFullName}
+              value={fullName}
+              placeholder="Full Name (e.g Ali bin Abu)"
+              placeholderTextColor="#888"
+              autoCapitalize="words"
+              maxLength={25}
+            />
+            {/* Character counter */}
+            <Text style={{
+              fontSize: 12,
+              color: fullName.length > 25 ? '#E67E22' : '#888',
+              alignSelf: 'flex-end',
+              marginTop: -10,
+              marginBottom: 10,
+              marginRight: 5
+            }}>
+              {fullName.length}/25
+            </Text>
+          </View>
         )}
 
         <TextInput
@@ -121,15 +145,28 @@ export default function AuthScreen() {
           keyboardType="email-address"
         />
         
-        <TextInput
-          style={styles.input}
-          onChangeText={setPassword}
-          value={password}
-          placeholder="Password"
-          placeholderTextColor="#888"
-          secureTextEntry={true}
-          autoCapitalize="none"
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            onChangeText={setPassword}
+            value={password}
+            placeholder="Password"
+            placeholderTextColor="#888"
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+          />
+          <TouchableOpacity 
+            onPress={() => setShowPassword(!showPassword)} 
+            style={styles.eyeButton}
+          >
+            {/* This icon changes based on the showPassword state */}
+            <Ionicons 
+              name={showPassword ? "eye" : "eye-off"} 
+              size={26} 
+              color="#4B2C85" 
+            />
+          </TouchableOpacity>
+        </View>
 
         {/* Action Button */}
         <TouchableOpacity 
@@ -214,4 +251,21 @@ const styles = StyleSheet.create({
     color: '#4B2C85',
     fontWeight: 'bold',
   },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  passwordInput: {
+    flex: 1, 
+    padding: 15,
+    fontSize: 16,
+  },
+  eyeButton: {
+    paddingHorizontal: 15,
+},
 });

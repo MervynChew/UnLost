@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     width: '70%',
   },
   welcome: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: Colors.light.purple,
   },

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { supabase } from "../../lib/supabase";
 
 type ClaimedByProps = {
   scheduleRequestId: number;
+  onPress?: () => void;
 };
 
-export default function ClaimedBy({ scheduleRequestId }: ClaimedByProps) {
+export default function ClaimedBy({ scheduleRequestId, onPress }: ClaimedByProps) {
   const [name, setName] = useState("Loading...");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
@@ -58,13 +59,16 @@ export default function ClaimedBy({ scheduleRequestId }: ClaimedByProps) {
   }, [scheduleRequestId]);
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={imageUrl ? { uri: imageUrl } : fallBackImage}
-        style={styles.avatar}
-      />
-      <Text style={styles.name}>{name}</Text>
-    </View>
+    // Wrap Item Claimer's Name and Profile Picture in Touchable Opacity to be pressed
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} disabled={!onPress}>
+      <View style={styles.container}>
+        <Image
+          source={imageUrl ? { uri: imageUrl } : fallBackImage}
+          style={styles.avatar}
+        />
+        <Text style={styles.name}>{name}</Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 
