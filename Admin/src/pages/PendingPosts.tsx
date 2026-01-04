@@ -28,17 +28,25 @@ export default function PendingPosts() {
   const [showUndoToast, setShowUndoToast] = useState(false);     // Controls visibility of undo toast
   const lastAction = useRef<{ post: Post; timer: ReturnType<typeof setTimeout> } | null>(null);    // Stores last action for undo
   const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true); // Start as true
 
   // Fetch Pending Posts from Supabase
   const fetchPending = async() => {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*, profiles(full_name)')
-      .eq('status', 'pending') // Only fetch unverified posts
-      .order('created_at', { ascending: false });
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*, profiles(full_name)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
 
-    if (error) console.error(error);
-    else setPendingPosts(data || []);
+      if (error) throw error;
+      setPendingPosts(data || []);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false); // Done fetching
+    }
   };
 
   useEffect(() => {
@@ -126,27 +134,41 @@ export default function PendingPosts() {
 
   // Reject function removes post from Pending (in real app, would update DB)
   const handleRejectConfirm = async () => {
-    if (!viewingPost || !rejectCategory) return;
+    if (!viewingPost) return;
+    if (!rejectCategory) {
+      alert("Please select a reason for rejection.");
+      return;
+    }
+
+    // If you are using a processing state for the reject modal specifically
+    setIsProcessing(viewingPost.post_id);
 
     try {
-      // Option A: Delete the post entirely
+      // 1. Delete from Supabase
       const { error } = await supabase
         .from('posts')
         .delete()
         .eq('post_id', viewingPost.post_id);
 
-      // Option B (Recommended): Update status to 'rejected' 
-      // and store the rejection reason in a new column
-
       if (error) throw error;
 
+      // 2. Log the reason (In a real app, you'd send this to an email service)
+      console.log(`Post #${viewingPost.post_id} rejected for: ${rejectCategory}`);
+      console.log(`Additional Details: ${additionalDetails}`);
+
+      // 3. Update local state
       setPendingPosts(prev => prev.filter(p => p.post_id !== viewingPost.post_id));
+      
+      // 4. Close modals and notify Admin
       resetRejectionState();
-      alert("Post rejected.");
+      alert("Post rejected and removed successfully.");
+      console.log(`Post #${viewingPost.post_id} removed. Reason: ${rejectCategory}`);
+
     } catch (err) {
-      const error = err as Error;
-      console.error("Approval error:", error.message);
-      alert("Failed to approve post.");
+      console.error("Deletion failed:", err);
+      alert("System error: Could not remove the post.");
+    } finally {
+      setIsProcessing(null);
     }
   };
 
@@ -156,8 +178,10 @@ export default function PendingPosts() {
         <h2 className="title">Pending Approvals</h2>
       </header>
 
-      {/* Show Table if data exists, otherwise show Empty State */}
-      {pendingPosts.length > 0 ? (
+      {loading ? (
+        /* State 1: Loading (Optional: Add a spinner here) */
+        <div className="loading-state">Loading pending posts...</div>
+      ) : pendingPosts.length > 0 ? (
         <div className="table-card">
           <table className="pending-table">
             <thead>

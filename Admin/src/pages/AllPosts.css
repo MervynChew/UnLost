@@ -478,6 +478,12 @@ input[type="text"],
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     font-size: 14px;
     line-height: 1.5;
+    border-radius: 12px;
+
+    word-wrap: break-word;       /* Older browser support */
+    overflow-wrap: break-word;   /* Standard modern property */
+    word-break: break-word;      /* Forces long strings to break */
+    overflow: hidden;            /* Ensures nothing physically exits the border */
 }
 .schedule-status-badge {
     background: #fdf289;
@@ -669,4 +675,39 @@ input[type="text"],
 @keyframes slideUp {
     from { bottom: -50px; opacity: 0; }
     to { bottom: 30px; opacity: 1; }
+}
+
+.loading-container {
+    grid-column: 1 / -1; /* Makes it span across the whole grid */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    color: #666;
+}
+
+.loader-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #8b6ba8; /* Use your theme color */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Optional Fade-in for the grid */
+.posts-grid {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }

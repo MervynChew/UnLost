@@ -311,6 +311,11 @@
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #e5d5f2 transparent;
+
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    overflow: hidden;
 }
 .description-scroll-box::-webkit-scrollbar-track {
     background: transparent;
@@ -414,6 +419,10 @@
     border-radius: 8px;
     font-weight: 700;
     cursor: pointer;
+    transition: background 0.2s;
+}
+.btn-send-reject:hover {
+    background: #c9302c;
 }
 .btn-cancel {
     background: #f5f5f5;
@@ -450,4 +459,12 @@
 @keyframes slideUp {
     from { bottom: -50px; opacity: 0; }
     to { bottom: 30px; opacity: 1; }
+}
+
+.table-card, .empty-state-card, .posts-grid {
+    animation: fadeIn 0.4s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }

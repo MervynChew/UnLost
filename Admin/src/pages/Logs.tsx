@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './Logs.css';
+import { supabase } from '../supabaseClient';
 
 interface LogEntry {
-  id: string;
-  timestamp: string;
-  action: string;
-  performedBy: string;
+  audit_id: string;      // Matches Primary Key
+  time_stamp: string;    // Matches your DB column
+  action_type: string;   // Matches action_type
+  actor_name: string;    // Matches actor_name
+  actor_type: string;    // Matches 'admin', 'user', or 'system'
 }
 
 export default function Logs() {
   // --- States ---
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const logsPerPage = 10; // Adjust this number as needed
+  const logsPerPage = 10;
+
   const [filters, setFilters] = useState({
     role: 'All',           // All, Admin, User
     dateRange: 'All',      // All, 24h, 7d, 30d
@@ -20,55 +23,72 @@ export default function Logs() {
   });
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
-  // --- Mock Data ---
-  const [logs] = useState<LogEntry[]>([
-    { id: '1', timestamp: '12 November 2025, 11:24', action: 'Post Created', performedBy: 'User 22302352' },
-    { id: '2', timestamp: '25 June 2025, 12:52', action: 'Item Claimed', performedBy: 'User 22305215' },
-    { id: '3', timestamp: '29 September 2025, 20:34', action: 'Post Deleted', performedBy: 'System' },
-    { id: '4', timestamp: '21 February 2025, 17:45', action: 'Accepted Pending Post', performedBy: 'Admin 001' },
-    // Add more mock items to test pagination...
-  ]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // --- Fetch Logs ---
+  useEffect(() => {
+    const fetchLogs = async () => {
+      setLoading(true);
+      try {
+        let query = supabase
+          .from('audit_logs')
+          .select('*')
+          .order('time_stamp', { ascending: false });
+
+        // 1. Role Filter
+        if (filters.role !== 'All') {
+          query = query.eq('actor_type', filters.role.toLowerCase());
+        }
+
+        // 2. Timeframe Filter
+        if (filters.dateRange !== 'All') {
+          const now = new Date();
+          const startDate = new Date();
+          if (filters.dateRange === '24h') startDate.setHours(now.getHours() - 24);
+          if (filters.dateRange === '7d') startDate.setDate(now.getDate() - 7);
+          query = query.gte('time_stamp', startDate.toISOString());
+        }
+
+        // 3. Activity Group Filter
+        if (filters.activityGroup === 'Posts') {
+          query = query.ilike('action_type', '%Post%');
+        } else if (filters.activityGroup === 'Management') {
+          query = query.ilike('action_type', '%User%');
+        } else if (filters.activityGroup === 'Claims') {
+          query = query.ilike('action_type', '%Claim%');
+        }
+
+        // 4. Search Filter
+        if (searchTerm) {
+          query = query.or(`action_type.ilike.%${searchTerm}%,actor_name.ilike.%${searchTerm}%`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        setLogs(data || []);
+      } catch (err) {
+        console.error('Error fetching logs:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, [filters, searchTerm]);
 
   // --- Search & Pagination Logic ---
   const pagingLogs = logs.filter(log => 
-    log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.performedBy.toLowerCase().includes(searchTerm.toLowerCase())
+    log.action_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    log.actor_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Pagination Calculations
   const indexOfLastLog = currentPage * logsPerPage;
   const indexOfFirstLog = indexOfLastLog - logsPerPage;
+  const currentLogs = pagingLogs.slice(indexOfFirstLog, indexOfLastLog);
+  const totalPages = Math.ceil(pagingLogs.length / logsPerPage);
 
-
-  const filteredLogs = logs.filter(log => {
-    const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          log.performedBy.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesRole = filters.role === 'All' || 
-      (filters.role === 'Admin' ? log.performedBy.includes('Admin') : !log.performedBy.includes('Admin') && log.performedBy !== 'System');
-
-    const matchesActivity = filters.activityGroup === 'All' || 
-      (filters.activityGroup === 'Posts' && (log.action.includes('Post'))) ||
-      (filters.activityGroup === 'Claims' && log.action.includes('Item Claimed')) ||
-      (filters.activityGroup === 'Management' && (log.action.includes('User') || log.action.includes('Disabled')));
-
-    const matchesDate = () => {
-      if (filters.dateRange === 'All') return true;
-      
-      const logDate = new Date(log.timestamp);
-      const now = new Date();
-      const diffInDays = (now.getTime() - logDate.getTime()) / (1000 * 3600 * 24);
-      
-      if (filters.dateRange === '24h') return diffInDays <= 1;
-      if (filters.dateRange === '7d') return diffInDays <= 7;
-      return true;
-    };
-
-    return matchesSearch && matchesRole && matchesActivity && matchesDate();
-  });
-
-  const currentLogs = filteredLogs.slice(indexOfFirstLog, indexOfLastLog);
-  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
@@ -111,6 +131,7 @@ export default function Logs() {
                   <button onClick={() => setFilters({...filters, role: 'All'})} className={filters.role === 'All' ? 'active' : ''}>All Roles</button>
                   <button onClick={() => setFilters({...filters, role: 'Admin'})} className={filters.role === 'Admin' ? 'active' : ''}>Admin Only</button>
                   <button onClick={() => setFilters({...filters, role: 'User'})} className={filters.role === 'User' ? 'active' : ''}>User Only</button>
+                  <button onClick ={() => setFilters({...filters, role: 'System'})} className={filters.role === 'System' ? 'active' : ''}>System Only</button>
                 </div>
 
                 <div className="filter-section">
@@ -148,28 +169,44 @@ export default function Logs() {
             </tr>
           </thead>
           <tbody>
-            {currentLogs.length > 0 ? (
+            {loading ? (
+              <tr><td colSpan={3} style={{ textAlign: 'center', padding: '40px' }}>Loading logs...</td></tr>
+            ) : currentLogs.length > 0 ? (
               currentLogs.map((log) => (
-                <tr key={log.id}>
-                  <td>{log.timestamp}</td>
-                  <td style={{ fontWeight: '500' }}>{log.action}</td>
-                  <td>{log.performedBy}</td>
+                <tr key={log.audit_id}>
+                  {/* Date Formatting */}
+                  <td>{new Date(log.time_stamp).toLocaleString('en-GB', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</td>
+                  
+                  <td style={{ fontWeight: '500' }}>{log.action_type}</td>
+                  
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {log.actor_name}
+                      {/* Added a small badge so you can see if it was an Admin or System */}
+                      <span style={{ 
+                        fontSize: '10px', 
+                        padding: '2px 6px', 
+                        borderRadius: '10px',
+                        backgroundColor: log.actor_type === 'admin' ? '#f3f0ff' : '#f3f4f6',
+                        color: log.actor_type === 'admin' ? '#6c5ce7' : '#666'
+                      }}>
+                        {log.actor_type.toUpperCase()}
+                      </span>
+                    </div>
+                  </td>
                 </tr>
               ))
             ) : (
+              /* Keep your existing "No results" code here */
               <tr>
                 <td colSpan={3} className="no-results-container">
-                  <div className="no-results-content">
-                    <div className="no-results-icon">🔍</div>
-                    <h4>No logs found</h4>
-                    <p>We couldn't find any activity matching your current filters.</p>
-                    <button 
-                      className="reset-inline-btn"
-                      onClick={() => setFilters({role:'All', dateRange:'All', activityGroup:'All'})}
-                    >
-                      Clear all filters
-                    </button>
-                  </div>
+                  {/* ... your existing empty state JSX ... */}
                 </td>
               </tr>
             )}
@@ -177,7 +214,7 @@ export default function Logs() {
         </table>
 
         {/* Pagination integrated inside or just below the card */}
-        {filteredLogs.length > 0 && (
+        {pagingLogs.length > 0 && (
           <div className="pagination">
             <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}> &lt; </button>
             

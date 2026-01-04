@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import './Login.css';
+
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +40,12 @@ export default function Login() {
         setError("Access Denied: This account does not have Admin privileges.");
         await supabase.auth.signOut(); // Clean up the session
         setLoading(false);
-      } else {
+      } else if (profile?.role === 'disabled') {
+        setError("Account Disabled: Please contact support for assistance.");
+        await supabase.auth.signOut(); // Clean up the session
+        setLoading(false);
+      }
+      else {
         // Success! App.tsx will notice the session and move us.
         // We don't call setLoading(false) here to avoid a flicker 
         // before the Dashboard slides in.

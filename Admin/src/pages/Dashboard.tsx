@@ -25,7 +25,7 @@ const chartColors = {
 interface DashboardStats {
   totalLost: number;
   totalFound: number;
-  pendingApprovals: number;
+  pendingPosts: number;
   recoveryRate: number;
 }
 
@@ -43,15 +43,16 @@ interface CategoryCount {
 
 interface RecentActivity {
   id: string;
-  title: string;
-  created_at: string;
+  action_type: string;
+  actor_name: string;
+  time_stamp: string;
 }
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalLost: 0,
     totalFound: 0,
-    pendingApprovals: 0,
+    pendingPosts: 0,
     recoveryRate: 0,
   });
 
@@ -67,7 +68,7 @@ export default function Dashboard() {
       try {
         setLoading(true);
 
-        // 1. Fetch Stats from 'posts' table
+        // Fetch Stats from 'posts' table
         const { data: posts, error: postsError } = await supabase
           .from('posts')
           .select('status, created_at, tags');
@@ -77,23 +78,19 @@ export default function Dashboard() {
         // Calculate KPI Stats
         const lost = posts.filter(p => p.status === 'lost').length;
         const claimed = posts.filter(p => p.status === 'claimed').length;
+        const pending = posts.filter(p => p.status === 'pending').length;
         const total = posts.length;
         const recoveryRate = total > 0 ? ((claimed / total) * 100).toFixed(1) : '0.0';
 
-        // 2. Fetch Pending Requests from 'schedule_requests' table
-        const { count: pendingCount } = await supabase
-          .from('schedule_requests')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending');
-
+        // Fetch Pending Posts Count
         setStats({
           totalLost: lost,
-          totalFound: claimed, // Using 'claimed' as 'found' count based on your schema
-          pendingApprovals: pendingCount || 0,
+          totalFound: claimed, 
+          pendingPosts: pending || 0,
           recoveryRate: parseFloat(recoveryRate),
         });
 
-        // 3. Process Monthly Data
+        // Process Monthly Data
         const monthlyMap = new Map();
         months.forEach(m => monthlyMap.set(m, { totalPosts: 0, lostPosts: 0, claimedPosts: 0 }));
 
@@ -107,7 +104,7 @@ export default function Dashboard() {
 
         setMonthlyData(months.map(m => ({ month: m, ...monthlyMap.get(m) })));
 
-        // 4. Process Top 5 Category Data (Mapping from tags[0])
+        // Process Top 5 Category Data (Mapping from tags[0])
         const categoryMap = new Map<string, number>();
         posts.forEach(post => {
           const cat = (post.tags && post.tags[0]) || 'Uncategorized';
@@ -121,17 +118,20 @@ export default function Dashboard() {
 
         setCategoryData(sortedTop5);
 
-        // 5. Fetch Recent Activities from 'notifications' table
-        const { data: notifications } = await supabase
-          .from('notifications')
-          .select('notification_id, title, created_at')
-          .order('created_at', { ascending: false })
-          .limit(5);
+        // Fetch Recent Activities from 'notifications' table
+        const { data: latestLogs, error: logsError } = await supabase
+          .from('audit_logs')
+          .select('audit_id, action_type, actor_name, time_stamp')
+          .order('time_stamp', { ascending: false })
+          .limit(4);
 
-        setRecentActivities(notifications?.map(n => ({
-          id: n.notification_id.toString(),
-          title: n.title,
-          created_at: n.created_at
+        if (logsError) throw logsError;
+
+        setRecentActivities(latestLogs?.map(log => ({
+          id: log.audit_id.toString(),
+          action_type: log.action_type,
+          actor_name: log.actor_name,
+          time_stamp: log.time_stamp
         })) || []);
 
       } catch (error) {
@@ -236,8 +236,8 @@ export default function Dashboard() {
           <span className="stat-value orange">{stats.recoveryRate}%</span>
         </div>
         <div className="KPI-cards">
-          <span className="stat-label">Pending Meetings</span>
-          <span className="stat-value yellow">{stats.pendingApprovals}</span>
+          <span className="stat-label">Pending Posts</span>
+          <span className="stat-value yellow">{stats.pendingPosts}</span>
         </div>
       </div>
 
@@ -261,15 +261,38 @@ export default function Dashboard() {
         </section>
 
         <section className="card activity-container">
-          <h3 className="card-title">Recent Notifications</h3>
-          <ul className="activity-list">
-            {recentActivities.map(activity => (
-              <li key={activity.id}>
-                <span>{activity.title}</span>
-                <small>{formatTimeAgo(activity.created_at)}</small>
-              </li>
-            ))}
-          </ul>
+          <h3 className="card-title">Latest System Activity</h3>
+          <div className="activity-content-wrapper">
+            <ul className="activity-list">
+              {recentActivities.length > 0 ? (
+                recentActivities.map(activity => (
+                  <li key={activity.id} style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontWeight: '600', fontSize: '14px', color: '#333' }}>
+                        {activity.action_type}
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#666' }}>
+                        by {activity.actor_name}
+                      </span>
+                    </div>
+                    <small style={{ color: '#999', fontSize: '11px' }}>
+                      {formatTimeAgo(activity.time_stamp)}
+                    </small>
+                  </li>
+                ))
+              ) : (
+                <p style={{ fontSize: '13px', color: '#999', textAlign: 'center', marginTop: '20px' }}>
+                  No recent activity found.
+                </p>
+              )}
+            </ul>
+
+            <button className="view-logs-button"
+              onClick={() => window.location.href = '/logs'} 
+            >
+              View All Logs →
+            </button>
+          </div>
         </section>
       </div>
     </div>

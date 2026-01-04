@@ -38,17 +38,12 @@ export default function AllPosts() {
   const [sortBy, setSortBy] = useState('Newest');  
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastDeletedPost, setLastDeletedPost] = useState<Post | null>(null);
-  const [showUndoToast, setShowUndoToast] = useState(false);
   const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>([]);
-
-  const suggestions = ['Phone', 'Earbuds', 'Electronics', 'Wireless', 'Laptop', 'Charger', 'Keys', 'Wallet'];
 
   // --- Fetch Posts from Supabase ---
   const fetchPosts = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-
       let query = supabase
         .from('posts')
         .select(`
@@ -94,6 +89,27 @@ export default function AllPosts() {
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
+
+  const logAdminPostActivity = async (action: string, postId: number) => {
+    const { data: { user: adminAuth } } = await supabase.auth.getUser();
+    if (!adminAuth) return;
+
+    // Fetch admin name directly from profiles
+    const { data: adminProfile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', adminAuth.id)
+      .single();
+
+    await supabase.from('audit_logs').insert({
+      actor_id: adminAuth.id,
+      actor_name: adminProfile?.full_name || 'Admin',
+      actor_type: 'admin',
+      action_type: action,
+      entity_type: 'posts',
+      target_id: postId // Using the post_id as the target
+    });
+  };
 
   // --- Logic: Filter for search bar (Kept your logic) ---
   const filteredAndSortedPosts = posts.filter(post => {
@@ -176,6 +192,8 @@ export default function AllPosts() {
     if (!confirmed) return;
 
     try{
+      await logAdminPostActivity('Post Deleted', id);
+
       const { error } = await supabase
         .from('posts')
         .delete()
@@ -210,6 +228,8 @@ export default function AllPosts() {
         return;
       }
 
+      await logAdminPostActivity('Post Archived', id);
+
       console.log("Success! Updated data:", data);
       await fetchPosts();
       setViewingPost(null);
@@ -232,18 +252,17 @@ export default function AllPosts() {
 
       if (error) throw error;
 
+      await logAdminPostActivity('Post Unarchived', id);
+
       // CRITICAL: You must fetch the posts again to see the change in the UI
       await fetchPosts();
       setViewingPost(null);
 
-      alert('Post unarchived successfully.');
     } catch (error) {
       console.error('Error unarchiving post:', error);
       alert('Failed to unarchive post. Please try again.');
     }
   };
-
-  const undoDelete = () => { /* Logic remains same as your original */ };
 
   // Helper function to get the latest schedule request
   const getLatestScheduleRequest = (scheduleRequests?: Post['schedule_requests']) => {
@@ -337,7 +356,13 @@ export default function AllPosts() {
 
       {/* --- Card Grid (Kept your Layout) --- */}
       <div className="posts-grid">
-        {currentPosts.length > 0 ? (
+        {loading ? (
+          /* State 1: Loading - Prevents the empty state from flashing */
+          <div className="loading-container">
+            <div className="loader-spinner"></div>
+            <p>Fetching posts...</p>
+          </div>
+        ) : currentPosts.length > 0 ? (
           currentPosts.map((post) => (
             <div key={post.post_id} className="post-card" onClick={() => setViewingPost(post)}>
 
@@ -364,13 +389,15 @@ export default function AllPosts() {
       </div>
 
       {/* --- Pagination (Kept your Layout) --- */}
-      <div className="pagination-container">
-        <button className="page-arrow" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}>&lt;</button>
-        {[...Array(totalPages)].map((_, index) => (
-          <button key={index + 1} className={`page-number ${currentPage === index + 1 ? 'active' : ''}`} onClick={() => setCurrentPage(index + 1)}>{index + 1}</button>
-        ))}
-        <button className="page-arrow" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}>&gt;</button>
-      </div>
+      {!loading && filteredAndSortedPosts.length > 0 && (
+        <div className="pagination-container">
+          <button className="page-arrow" onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}>&lt;</button>
+          {[...Array(totalPages)].map((_, index) => (
+            <button key={index + 1} className={`page-number ${currentPage === index + 1 ? 'active' : ''}`} onClick={() => setCurrentPage(index + 1)}>{index + 1}</button>
+          ))}
+          <button className="page-arrow" onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}>&gt;</button>
+        </div>
+      )}
 
       {/* --- Modal Overlay (Kept your exact Layout) --- */}
       {viewingPost && (() => {
