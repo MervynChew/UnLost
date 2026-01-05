@@ -36,6 +36,7 @@ interface User {
   role: string;
   postsCount: number;
   lastActive: string;
+  profilePicture: string | null;
   history: {
     posts: PostFromDB[];
     claims: ClaimFromDB[];
@@ -69,17 +70,15 @@ export default function ManageUsers() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // We select profile info and a sub-count of posts
       const { data, error } = await supabase
         .from('profiles')
         .select(`
-          id,full_name,email,role 
+          id,full_name,email,role,profile_picture
         `)
-        .in('role', ['user', 'banned']); // Usually you only want to manage 'users', not other admins
+        .in('role', ['user', 'banned']);
 
       if (error) throw error;
 
-      // We do this via Promise.all so it's fast
       if (data) {
         const usersWithCounts = await Promise.all(
           data.map(async (u) => {
@@ -92,6 +91,7 @@ export default function ManageUsers() {
               id: u.id,
               name: u.full_name || 'Anonymous',
               email: u.email,
+              profilePicture: u.profile_picture || null,
               matricNumber: 'N/A',
               role: u.role || 'user',
               postsCount: count || 0,
@@ -128,7 +128,7 @@ export default function ManageUsers() {
         .order('created_at', { ascending: false });
 
       // 2. Fetch "My Claims" (Items this user lost and successfully retrieved)
-      // We join with the 'posts' table to get the image and description of what was claimed
+      // Join with the 'posts' table to get the image and description of what was claimed
       const { data: claimsDataRaw } = await supabase
         .from('schedule_requests')
         .select(`
@@ -233,17 +233,17 @@ export default function ManageUsers() {
     const { data: { user } } = await supabase.auth.getUser();
 
     try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userToDelete.id);
+
       await supabase.from('audit_logs').insert({
         actor_id: user?.id,
         action_type: 'USER_DELETED',
         entity_type: 'profiles',
         target_id: userToDelete.id,
       });
-
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userToDelete.id);
 
       if (error) throw error;
 
@@ -259,8 +259,8 @@ export default function ManageUsers() {
       
       alert("User account and profile deleted successfully.");
     } catch (err) {
-      console.error("Delete failed:", err);
-      alert("Action failed. Ensure you have admin permissions.");
+      console.error("Delete failed", err);
+      alert("Action failed.");
     }
   };
 
@@ -320,7 +320,17 @@ export default function ManageUsers() {
         <div className="user-profile-grid">
           {/* LEFT COLUMN: Profile Info */}
           <div className="profile-card">
-            <div className="avatar-large">👤</div>
+            <div className="avatar-large">
+              {selectedUser.profilePicture ? (
+                <img 
+                  src={selectedUser.profilePicture} 
+                  alt={selectedUser.name} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
+                />
+              ) : (
+                "👤"
+              )}
+            </div>
             <h2 className="profile-name">{selectedUser.name}</h2>
             <p className="profile-role">Student</p>
             
@@ -394,42 +404,58 @@ export default function ManageUsers() {
             <div className="history-block">
               <h4 className="history-sub-title">My Posts</h4>
               <div className="history-list scrollable-history">
-                {selectedUser.history.posts.map(post => (
-                  <div key={post.post_id} className="history-card post-card" onClick={() => setViewingHistoryItem(post)}>
-                    <img className="placeholder-box" src={post.post_image || ''} alt="Post Placeholder" />
-                    <div className="history-grid-info">
-                      <div className="grid-item">
-                        <span className="grid-label">Date of Post</span>
-                        <span className="grid-value">{post.found_date}</span>
-                      </div>
-                      <div className="grid-item">
-                        <span className="grid-label">Status</span>
-                        <span className="grid-value">{post.status}</span>
+                {selectedUser.history.posts.length > 0 ? (
+                  selectedUser.history.posts.map(post => (
+                    <div key={post.post_id} className="history-card post-card" onClick={() => setViewingHistoryItem(post)}>
+                      <img className="placeholder-box" src={post.post_image || ''} alt="Post" />
+                      <div className="history-grid-info">
+                        <div className="grid-item">
+                          <span className="grid-label">Date of Post</span>
+                          <span className="grid-value">{post.found_date}</span>
+                        </div>
+                        <div className="grid-item">
+                          <span className="grid-label">Status</span>
+                          <span className="grid-value">{post.status}</span>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  /* Empty State for Posts */
+                  <div className="empty-history-state">
+                    <div className="empty-icon">📦</div>
+                    <p>No items found by this user yet.</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
             <div className="history-block">
               <h4 className="history-sub-title">My Claims </h4>
               <div className="history-list scrollable-history">
-                {selectedUser.history.claims.map(claim => (
-                  <div key={claim.request_id} className="history-card claim-card" onClick={() => setViewingHistoryItem(claim)}>
-                    <img className="placeholder-box" src={claim.post?.post_image || ''} alt="Post Placeholder" />
-                    <div className="history-grid-info">
-                      <div className="grid-item">
-                        <span className="grid-label">Date of Claim</span>
-                        <span className="grid-value">{claim.meet_date}</span>
-                      </div>
-                      <div className="grid-item">
-                        <span className="grid-label">Status</span>
-                        <span className="grid-value">{claim.status}</span>
+                {selectedUser.history.claims.length > 0 ? (
+                  selectedUser.history.claims.map(claim => (
+                    <div key={claim.request_id} className="history-card claim-card" onClick={() => setViewingHistoryItem(claim)}>
+                      <img className="placeholder-box" src={claim.post?.post_image || ''} alt="Claim" />
+                      <div className="history-grid-info">
+                        <div className="grid-item">
+                          <span className="grid-label">Date of Claim</span>
+                          <span className="grid-value">{claim.meet_date}</span>
+                        </div>
+                        <div className="grid-item">
+                          <span className="grid-label">Status</span>
+                          <span className="grid-value">{claim.status}</span>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  /* Empty State for Claims */
+                  <div className="empty-history-state">
+                    <div className="empty-icon">🤝</div>
+                    <p>No successful claims recorded for this user.</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -458,7 +484,20 @@ export default function ManageUsers() {
                 <section className="detail-section">
                   <h3>Posted By</h3>
                   <div className="user-info">
-                    <div className="user-avatar"></div>
+                    <div className="user-avatar">
+                      {selectedUser?.profilePicture ? (
+                          <img 
+                              src={selectedUser.profilePicture} 
+                              alt={selectedUser?.name || "User"} 
+                              className="avatar-img"
+                          />
+                      ) : (
+                          /* Fallback initial or icon if no picture exists */
+                          <div className="avatar-placeholder">
+                              {selectedUser?.name?.charAt(0) || "?"}
+                          </div>
+                      )}
+                    </div>
                     <span>{selectedUser?.name || 'Unknown'}</span>
                   </div>
                 </section>

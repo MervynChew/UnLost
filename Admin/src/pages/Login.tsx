@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import './Login.css';
+import logo from '../assets/logo.png';
 
 
 export default function Login() {
@@ -57,7 +58,9 @@ export default function Login() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <div className="logo-placeholder">UL</div>
+          <div className ="logo-placeholder">
+            <img src={logo} alt="UnLost Logo" className="login-logo" />
+          </div>
           <h1>UnLost Admin</h1>
           <p>Welcome to the Admin Portal</p>
         </div>

@@ -50,18 +50,19 @@ input[type="text"],
 
 /* Remove tag */
 .remove-tag-btn {
-    background: none;
-    border: none;
-    color: #666;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 0 4px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    line-height: 1;
+    justify-content: center;
+    width: 18px;  /* Size of the circle */
+    height: 18px; /* Size of the circle */
+    background-color: #8b6ba8; /* The purple color from your theme */
+    border-radius: 50%;
+    margin-left: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 .remove-tag-btn:hover {
-    color: #000;
+    background-color: #6f4a9e; /* Darker purple on hover */
 }
 .suggestion-chips {
     display: flex;
@@ -93,9 +94,12 @@ input[type="text"],
     width: fit-content;
 }
 .search-tag.active-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px 4px 12px; /* Less padding on the right because of the circle */
     background: #fdf289;
     border: 1px solid #ddd;
-    color: #333;
+    border-radius: 20px;
 }
 .suggestions-dropdown {
     position: absolute;
@@ -567,6 +571,29 @@ input[type="text"],
     font-size: 20px;
     cursor: pointer;
 }
+.close-x-container {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;  /* Size of the circle */
+    height: 18px; /* Size of the circle */
+    background-color: #8b6ba8; /* The purple color from your theme */
+    border-radius: 50%;
+    margin-left: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.close-x {
+    color: white;
+    font-size: 10px; /* Small x to fit in circle */
+    font-family: Arial, sans-serif;
+    line-height: 1;
+    margin-top: -1px; /* Optical adjustment for vertical centering */
+}
+.close-x-container:hover {
+    background-color: #6f4a9e; /* Darker purple on hover */
+}
+
 
 
 /* Pagination Styling */
@@ -641,8 +668,21 @@ input[type="text"],
     background: #eee;
     border-radius: 50%;
     border: 1px solid #ddd;
+    overflow: hidden; /* Important: keeps the image circular */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-
+.avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures the image fills the circle without stretching */
+}
+.avatar-placeholder {
+    color: #888;
+    font-weight: bold;
+    text-transform: uppercase;
+}
 
 .undo-toast {
     position: fixed;

@@ -18,22 +18,23 @@
 }
 
 .logo-placeholder {
-  width: 60px;
-  height: 60px;
-  background: #8b6ba8; /* The Purple color from your Dashboard */
-  color: white;
-  border-radius: 15px;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-weight: bold;
-  font-size: 24px;
-  margin: 0 auto 20px;
+  margin: 0 auto 5px;
+  width: 100%; 
+}
+
+.login-logo {
+  width: 250px;      
+  height: auto;      
+  object-fit: contain;
 }
 
 .login-header h1 {
   font-size: 24px;
   color: #2d2d2d;
+  margin-top: -30px;
   margin-bottom: 8px;
 }
 

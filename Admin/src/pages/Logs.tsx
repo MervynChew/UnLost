@@ -188,7 +188,6 @@ export default function Logs() {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {log.actor_name}
-                      {/* Added a small badge so you can see if it was an Admin or System */}
                       <span style={{ 
                         fontSize: '10px', 
                         padding: '2px 6px', 
@@ -196,17 +195,24 @@ export default function Logs() {
                         backgroundColor: log.actor_type === 'admin' ? '#f3f0ff' : '#f3f4f6',
                         color: log.actor_type === 'admin' ? '#6c5ce7' : '#666'
                       }}>
-                        {log.actor_type.toUpperCase()}
+                        {log.actor_type?.toUpperCase() || 'SYSTEM'}
                       </span>
                     </div>
                   </td>
                 </tr>
               ))
             ) : (
-              /* Keep your existing "No results" code here */
               <tr>
                 <td colSpan={3} className="no-results-container">
-                  {/* ... your existing empty state JSX ... */}
+                  <div className="no-results-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                  </div>
+                  <div className="no-results-text">
+                    No logs found matching your criteria.
+                  </div>
                 </td>
               </tr>
             )}

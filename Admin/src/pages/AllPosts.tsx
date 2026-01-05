@@ -10,6 +10,7 @@ export default function AllPosts() {
     user_id: string;
     profiles?: {
       full_name: string;
+      profile_picture?: string | null;
     };
     tags: string[];
     previous_status?: string | null; 
@@ -49,7 +50,8 @@ export default function AllPosts() {
         .select(`
           *,
           profiles (
-          full_name
+          full_name,
+          profile_picture
           ),
           schedule_requests (
             status,
@@ -80,7 +82,7 @@ export default function AllPosts() {
 
       setPosts(data || []);
     } catch (error) {
-      console.error('Error fetching posts:', error);
+      console.error('Error fetching posts ', error);
     } finally {
       setLoading(false);
     }
@@ -111,7 +113,7 @@ export default function AllPosts() {
     });
   };
 
-  // --- Logic: Filter for search bar (Kept your logic) ---
+  // --- Logic: Filter for search bar ---
   const filteredAndSortedPosts = posts.filter(post => {
     return searchTerm === '' || 
       post.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -222,7 +224,6 @@ export default function AllPosts() {
         .select();
 
       if (error) {
-        // THIS WILL TELL YOU EXACTLY WHY: e.g., "Policy violation" or "Column not found"
         console.error('Supabase Error Details:', error.message, error.details, error.hint);
         alert(`Error: ${error.message}`); 
         return;
@@ -268,8 +269,6 @@ export default function AllPosts() {
   const getLatestScheduleRequest = (scheduleRequests?: Post['schedule_requests']) => {
     if (!scheduleRequests || scheduleRequests.length === 0) return null;
     
-    // Since we're ordering by created_at DESC in the query, 
-    // the first item should be the latest, but let's ensure this
     return scheduleRequests.reduce((latest, current) => {
       const latestDate = new Date(latest.created_at);
       const currentDate = new Date(current.created_at);
@@ -292,7 +291,9 @@ export default function AllPosts() {
             {selectedTags.map(tag => (
               <span key={tag} className="search-tag">
                 {tag} 
-                <button className="remove-tag-btn" onClick={() => removeTag(tag)}>x</button>
+                <span className="remove-tag-btn" onClick={() => removeTag(tag)}>
+                  <span className="close-x">x</span>
+                </span>
               </span>
             ))}
             <input 
@@ -336,7 +337,10 @@ export default function AllPosts() {
                 <div className="suggestion-chips">
                   {selectedTags.map(tag => (
                     <span key={tag} className="search-tag active-tag">
-                      {tag} <span className="close-x" onClick={() => removeTag(tag)}>x</span>
+                      {tag} 
+                      <span className="close-x-container" onClick={() => removeTag(tag)}>
+                        <span className="close-x">x</span>
+                      </span>
                     </span>
                   ))}
                 </div>
@@ -406,7 +410,6 @@ export default function AllPosts() {
         return (
           <div className="modal-overlay" onClick={() => setViewingPost(null)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <button className="close-modal" onClick={() => setViewingPost(null)}>×</button>
               <h2 className="modal-title">Post Details</h2>
               <div className="modal-scroll-area">
                 <div className="detail-image-box">
@@ -415,7 +418,20 @@ export default function AllPosts() {
                 <section className="detail-section">
                   <h3>Posted By</h3>
                   <div className="user-info">
-                    <div className="user-avatar"></div>
+                    <div className="user-avatar">
+                      {viewingPost.profiles?.profile_picture ? (
+                          <img 
+                              src={viewingPost.profiles.profile_picture} 
+                              alt={viewingPost.profiles?.full_name || "User"} 
+                              className="avatar-img"
+                          />
+                      ) : (
+                          /* Fallback initial or icon if no picture exists */
+                          <div className="avatar-placeholder">
+                              {viewingPost.profiles?.full_name?.charAt(0) || "?"}
+                          </div>
+                      )}
+                    </div>
                     <span>{viewingPost.profiles?.full_name || "Unknown"}</span>
                   </div>
                 </section>

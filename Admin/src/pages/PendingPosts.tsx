@@ -45,7 +45,7 @@ export default function PendingPosts() {
     } catch (error) {
       console.error(error);
     } finally {
-      setLoading(false); // Done fetching
+      setLoading(false);
     }
   };
 
@@ -140,7 +140,6 @@ export default function PendingPosts() {
       return;
     }
 
-    // If you are using a processing state for the reject modal specifically
     setIsProcessing(viewingPost.post_id);
 
     try {
@@ -165,8 +164,8 @@ export default function PendingPosts() {
       console.log(`Post #${viewingPost.post_id} removed. Reason: ${rejectCategory}`);
 
     } catch (err) {
-      console.error("Deletion failed:", err);
-      alert("System error: Could not remove the post.");
+      console.error("Rejection failed:", err);
+      alert("System error: Could not reject the post.");
     } finally {
       setIsProcessing(null);
     }
