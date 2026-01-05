@@ -28,7 +28,6 @@ import { decode } from "base64-arraybuffer";
 import { Ionicons } from "@expo/vector-icons"; // <--- Add this
 
 import * as FileSystem from "expo-file-system/legacy";
-import { File, Directory, Paths } from "expo-file-system";
 
 import Seperator from "../General/sectionSeperator";
 
@@ -77,6 +76,7 @@ export function AnalysisResult({
   console.log(currentDate.toLocaleTimeString()); // prints time in the format: "HH:MM:SS AM/PM"
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSeccess] = useState(false);
 
   const handleSavePost = async () => {
     // Check if we have an image
@@ -147,8 +147,7 @@ export function AnalysisResult({
 
       if (dbError) throw dbError;
 
-      Alert.alert("Success!", "Item posted successfully.");
-      onScanAgain();
+      setIsSeccess(true);
     } catch (error) {
       console.log("FULL ERROR:", error); // Check your terminal
       if ((error as Error).message.includes("row-level security")) {
@@ -218,6 +217,38 @@ export function AnalysisResult({
             </View>
           </View>
         </Modal>
+
+
+
+      <Modal visible={isSuccess} transparent={true} animationType="fade">
+          <View style={styles.notifOverlay}>
+            <View style={styles.notifContainer}>
+              {/* Visual Indicator */}
+              <Ionicons 
+                name="checkmark-done-circle" 
+                size={54} 
+                color="#73f71bff" 
+                style={styles.notifIcon} 
+              />
+              
+              {/* Text Content */}
+              <Text style={styles.notifTitle}>Post Submitted Successfully</Text>
+              <Text style={styles.notifMessage}>
+                Thank you for tring to bring the pity item back to their PAPA or MAMA.
+              </Text>
+
+              {/* Right-Aligned Action Area */}
+              <View style={styles.notifActionRow}>
+                <ButtonOrange 
+                  title="Got it" 
+                  onPress={() => {setIsSeccess(false); onScanAgain();}}
+                  style={styles.notifButton}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
+        
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
