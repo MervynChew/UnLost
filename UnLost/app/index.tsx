@@ -138,174 +138,179 @@ export default function AuthScreen() {
   const hint = getPasswordHint();
 
   return (
+    <View style={styles.mainContainer}>
     <KeyboardAvoidingView 
-      style={{ flex: 1 }} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0}
-    >
-      <ScrollView 
-        contentContainerStyle={{ flexGrow: 1 }} 
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 20 : 0}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.scrollContainer}>
-            {/* Header Section */}
-            <View style={styles.header}>
-              <Text style={styles.title}>UNLOST</Text>
-              <Text style={styles.subtitle}>{isLogin ? 'USM LOST & FOUND SYSTEM' : 'STUDENT REGISTRATION'}</Text>
-            </View>
-
-            {/* Form Section */}
-            <View style={styles.form}>
-              
-              {/* Only show Name field if Registering */}
-              {!isLogin && (
-                <View>
-                  <TextInput
-                    style={styles.input}
-                    onChangeText={setFullName}
-                    value={fullName}
-                    placeholder="Full Name (e.g Ali bin Abu)"
-                    placeholderTextColor="#888"
-                    autoCapitalize="words"
-                    maxLength={25}
-                  />
-                  {/* Character counter */}
-                  <Text style={{
-                    fontSize: 12,
-                    color: fullName.length > 25 ? '#E67E22' : '#888',
-                    alignSelf: 'flex-end',
-                    marginTop: -15,
-                    marginBottom: 3,
-                    marginRight: 5
-                  }}>
-                    {fullName.length}/25
-                  </Text>
-                </View>
-              )}
-
-              {/* Email Field */}
-              <TextInput
-                style={styles.input}
-                onChangeText={setEmail}
-                value={email}
-                placeholder="USM Email (@student.usm.my)"
-                placeholderTextColor="#888"
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-
-              {/* Password Field */}
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  onChangeText={setPassword}
-                  value={password}
-                  placeholder="Password"
-                  placeholderTextColor="#888"
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity 
-                  onPress={() => setShowPassword(!showPassword)} 
-                  style={styles.eyeButton}
-                >
-                  {/* This icon changes based on the showPassword state */}
-                  <Ionicons 
-                    name={showPassword ? "eye" : "eye-off"} 
-                    size={26} 
-                    color="#4B2C85" 
-                  />
-                </TouchableOpacity>
+        <ScrollView 
+          contentContainerStyle={{ flexGrow: 1 }} 
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.scrollContainer}>
+              {/* Header Section */}
+              <View style={styles.header}>
+                <Text style={styles.title}>UNLOST</Text>
+                <Text style={styles.subtitle}>{isLogin ? 'USM LOST & FOUND SYSTEM' : 'STUDENT REGISTRATION'}</Text>
               </View>
-              {/* Password Requirement Hints */}
-              {!isLogin && hint.message !== '' && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -10, marginBottom: 12, paddingLeft: 10 }}>
-                    <Ionicons name={hint.icon} size={16} color={hint.color} />
-                    <Text style={{ marginLeft: 6, fontSize: 13, color: hint.color, fontWeight: '500' }}>
-                      {hint.message}
+
+              {/* Form Section */}
+              <View style={styles.form}>
+                
+                {/* Only show Name field if Registering */}
+                {!isLogin && (
+                  <View>
+                    <TextInput
+                      style={styles.input}
+                      onChangeText={setFullName}
+                      value={fullName}
+                      placeholder="Full Name (e.g Ali bin Abu)"
+                      placeholderTextColor="#888"
+                      autoCapitalize="words"
+                      maxLength={25}
+                    />
+                    {/* Character counter */}
+                    <Text style={{
+                      fontSize: 12,
+                      color: fullName.length > 25 ? '#E67E22' : '#888',
+                      alignSelf: 'flex-end',
+                      marginTop: -15,
+                      marginBottom: 3,
+                      marginRight: 5
+                    }}>
+                      {fullName.length}/25
                     </Text>
                   </View>
-              )}
+                )}
 
-              {/* Confirm Password Field */}
-              {!isLogin && (
-                <View>
-                  <View style={[
-                    styles.passwordContainer, 
-                    // Red Border if Mismatch
-                    passwordsDoNotMatch ? { borderColor: '#E67E22', borderWidth: 1 } : {}
-                  ]}>
-                    <TextInput
-                      style={styles.passwordInput}
-                      onChangeText={setConfirmPassword}
-                      value={confirmPassword}
-                      placeholder="Confirm Password"
-                      placeholderTextColor="#888"
-                      secureTextEntry={!showConfirmPassword}
-                      autoCapitalize="none"
+                {/* Email Field */}
+                <TextInput
+                  style={styles.input}
+                  onChangeText={setEmail}
+                  value={email}
+                  placeholder="USM Email (@student.usm.my)"
+                  placeholderTextColor="#888"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+
+                {/* Password Field */}
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    onChangeText={setPassword}
+                    value={password}
+                    placeholder="Password"
+                    placeholderTextColor="#888"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity 
+                    onPress={() => setShowPassword(!showPassword)} 
+                    style={styles.eyeButton}
+                  >
+                    {/* This icon changes based on the showPassword state */}
+                    <Ionicons 
+                      name={showPassword ? "eye" : "eye-off"} 
+                      size={26} 
+                      color="#4B2C85" 
                     />
-                    <TouchableOpacity 
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
-                      style={styles.eyeButton}
-                    >
-                      <Ionicons 
-                        name={showConfirmPassword ? "eye" : "eye-off"} 
-                        size={24} 
-                        color="#4B2C85" 
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Error Text */}
-                  {passwordsDoNotMatch && (
-                    <View style={styles.errorContainer}>
-                      <Ionicons name="alert-circle" size={16} color="#E67E22" />
-                      <Text style={styles.errorText}>
-                        Passwords do not match
+                  </TouchableOpacity>
+                </View>
+                {/* Password Requirement Hints */}
+                {!isLogin && hint.message !== '' && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -10, marginBottom: 12, paddingLeft: 10 }}>
+                      <Ionicons name={hint.icon} size={16} color={hint.color} />
+                      <Text style={{ marginLeft: 6, fontSize: 13, color: hint.color, fontWeight: '500' }}>
+                        {hint.message}
                       </Text>
                     </View>
-                  )}
-                </View>
-              )}
-
-              {/* Action Button */}
-              <TouchableOpacity 
-                style={styles.button} 
-                onPress={isLogin ? signInWithEmail : signUpWithEmail}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>{isLogin ? 'Sign In' : 'Sign Up'}</Text>
                 )}
-              </TouchableOpacity>
 
-              {/* Toggle Switch */}
-              <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={styles.switchContainer}>
-                <Text style={styles.switchText}>
-                  {isLogin ? "Don't have an account? " : "Already have an account? "}
-                  <Text style={styles.switchBold}>{isLogin ? 'Sign Up' : 'Log In'}</Text>
-                </Text>
-              </TouchableOpacity>
+                {/* Confirm Password Field */}
+                {!isLogin && (
+                  <View>
+                    <View style={[
+                      styles.passwordContainer, 
+                      // Red Border if Mismatch
+                      passwordsDoNotMatch ? { borderColor: '#E67E22', borderWidth: 1 } : {}
+                    ]}>
+                      <TextInput
+                        style={styles.passwordInput}
+                        onChangeText={setConfirmPassword}
+                        value={confirmPassword}
+                        placeholder="Confirm Password"
+                        placeholderTextColor="#888"
+                        secureTextEntry={!showConfirmPassword}
+                        autoCapitalize="none"
+                      />
+                      <TouchableOpacity 
+                        onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
+                        style={styles.eyeButton}
+                      >
+                        <Ionicons 
+                          name={showConfirmPassword ? "eye" : "eye-off"} 
+                          size={24} 
+                          color="#4B2C85" 
+                        />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Error Text */}
+                    {passwordsDoNotMatch && (
+                      <View style={styles.errorContainer}>
+                        <Ionicons name="alert-circle" size={16} color="#E67E22" />
+                        <Text style={styles.errorText}>
+                          Passwords do not match
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Action Button */}
+                <TouchableOpacity 
+                  style={styles.button} 
+                  onPress={isLogin ? signInWithEmail : signUpWithEmail}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>{isLogin ? 'Sign In' : 'Sign Up'}</Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* Toggle Switch */}
+                <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={styles.switchContainer}>
+                  <Text style={styles.switchText}>
+                    {isLogin ? "Don't have an account? " : "Already have an account? "}
+                    <Text style={styles.switchBold}>{isLogin ? 'Sign Up' : 'Log In'}</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </TouchableWithoutFeedback>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </TouchableWithoutFeedback>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 // Styles
 const styles = StyleSheet.create({
   scrollContainer: {
-    flex: 1,
     padding: 20,
     justifyContent: 'center',
     backgroundColor: '#fef7f7ff',
     minHeight: '100%', // Ensures it fills the screen on Android
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#fef7f7ff', // Added color to background outside scroll container when typing
   },
   header: {
     marginBottom: 26,
