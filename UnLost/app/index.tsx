@@ -70,15 +70,11 @@ export default function AuthScreen() {
         return false;
       }
 
-      // trong Password Constraints
+      // Strong Password Constraints
       // Regex: At least 8 chars, 1 digit, 1 small letter, 1 capital letter, 1 special character
-      const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
-      
-      if (!strongPasswordRegex.test(password)) {
-        Alert.alert(
-          'Weak Password', 
-          'Password must be at least 8 characters long and include:\n• One Uppercase letter\n• One Lowercase letter\n• One Number\n• One Special Character (!@#$%^&*)'
-        );
+      // If password lacks some requirement, alerts the user
+      if (!isLogin && !hint.isStrong) {
+        Alert.alert('Weak Password', hint.message);
         return false;
       }
     }
@@ -122,6 +118,24 @@ export default function AuthScreen() {
     
     setLoading(false);
   }
+
+  const getPasswordHint = () => {
+    if (password.length === 0) return { message: '', color: '#888', icon: 'ellipse-outline', isStrong: false };
+    
+    if (password.length < 8) 
+      return { message: "Must be at least 8 characters", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    if (!/[A-Z]/.test(password)) 
+      return { message: "Add an uppercase letter", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    if (!/[a-z]/.test(password)) 
+      return { message: "Add a lowercase letter", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    if (!/\d/.test(password)) 
+      return { message: "Include at least one digit", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    if (!/[!@#$%^&*]/.test(password)) 
+      return { message: "Add a special character (!@#$%^&*)", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    
+    return { message: "Password is secure!", color: '#27AE60', icon: 'checkmark-circle', isStrong: true };
+  };
+  const hint = getPasswordHint();
 
   return (
     <KeyboardAvoidingView 
@@ -205,6 +219,15 @@ export default function AuthScreen() {
                   />
                 </TouchableOpacity>
               </View>
+              {/* Password Requirement Hints */}
+              {!isLogin && hint.message !== '' && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -10, marginBottom: 12, paddingLeft: 10 }}>
+                    <Ionicons name={hint.icon} size={16} color={hint.color} />
+                    <Text style={{ marginLeft: 6, fontSize: 13, color: hint.color, fontWeight: '500' }}>
+                      {hint.message}
+                    </Text>
+                  </View>
+              )}
 
               {/* Confirm Password Field */}
               {!isLogin && (
@@ -212,7 +235,7 @@ export default function AuthScreen() {
                   <View style={[
                     styles.passwordContainer, 
                     // Red Border if Mismatch
-                    passwordsDoNotMatch ? { borderColor: 'red', borderWidth: 1 } : {}
+                    passwordsDoNotMatch ? { borderColor: '#E67E22', borderWidth: 1 } : {}
                   ]}>
                     <TextInput
                       style={styles.passwordInput}
@@ -235,9 +258,14 @@ export default function AuthScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Red Error Text */}
+                  {/* Error Text */}
                   {passwordsDoNotMatch && (
-                    <Text style={styles.errorText}>Passwords do not match</Text>
+                    <View style={styles.errorContainer}>
+                      <Ionicons name="alert-circle" size={16} color="#E67E22" />
+                      <Text style={styles.errorText}>
+                        Passwords do not match
+                      </Text>
+                    </View>
                   )}
                 </View>
               )}
@@ -364,11 +392,17 @@ const styles = StyleSheet.create({
   eyeButton: {
     paddingHorizontal: 15,
   },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: -10,
+    marginBottom: 12,
+    paddingLeft: 10,
+  },
   errorText: {
-    color: 'red',
-    fontSize: 12,
-    marginBottom: 20, // Push the button down slightly
-    marginTop: -13,   // Pull up closer to the input
-    marginLeft: 5,
-  }
+    color: '#E67E22',
+    fontSize: 13,
+    fontWeight: '500', // Same as password hint weight
+    marginLeft: 6,      // Space between icon and text
+  },
 });
