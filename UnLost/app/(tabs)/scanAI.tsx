@@ -8,6 +8,7 @@ import {
   Text,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useNavigation } from 'expo-router';
@@ -23,12 +24,16 @@ import * as FileSystem from 'expo-file-system/legacy'; // Use the legacy import 
 // ⚠️ Ensure this path matches where you put the AnalysisResult file
 import { AnalysisResult } from "@/components/scannerPage/AnalysisResult";
 
+import { ButtonOrange } from "../../components/General/buttonOrange";
+
 export default function ScanAI() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
   // --- Parent State ---
   const [loading, setLoading] = useState(false);
+
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
   
   // FIX 1: Defined strict types for state (image cannot be null inside the result object)
   const [result, setResult] = useState<{
@@ -227,7 +232,7 @@ export default function ScanAI() {
 
       // Feedback logic: Notify the user if YOLO missed the item
       if (!data.found) {
-        Alert.alert("No Object Found", "The Machine Learning Model didn't see an item. Sending to Gemini for fallback analysis.");
+        console.log("No Object Found", "The Machine Learning Model didn't see an item. Sending to Gemini for fallback analysis.");
       } else {
         console.log("Object found! Moving to deep analysis.");
       }
@@ -286,7 +291,7 @@ export default function ScanAI() {
           location: locString,
           description: "The AI could not identify this item. Please describe it manually.",
         });
-        Alert.alert("AI model failed to analyze the image. Please enter the tags and descriptions manually.");
+        setErrorModalVisible(true);
       }
     } catch (error) {
       // CASE 4: Network Error. Ensure the app doesn't crash and still shows the photo.
@@ -297,7 +302,7 @@ export default function ScanAI() {
         location: locString,
         description: "Network failed. Please provide a manual description.",
       });
-      Alert.alert("The system failed to communicate with the AI model. Please enter the tags and descriptions manually.");
+      setErrorModalVisible(true);
     } finally {
       setLoading(false); // Stop the "Analyzing..." spinner
     }
@@ -326,6 +331,8 @@ export default function ScanAI() {
         descriptionGemini={result.description}
         isSensitive={isSensitive}
         onScanAgain={() => setResult(null)}
+        isFailed={errorModalVisible}
+        setIsFailed={setErrorModalVisible}
       />
     );
   }
@@ -390,7 +397,6 @@ export default function ScanAI() {
             <Ionicons name="add" size={36} color="white" />
         </TouchableOpacity>
       </View>
-
     </View>
   );
 }
@@ -566,5 +572,56 @@ const styles = StyleSheet.create({
   btnTextBlack: {
     color: "black",
     fontWeight: "bold",
+  },
+
+  // For alert
+  // This dims the background when the modal is active
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)", // Darker semi-transparent overlay
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // The white box containing the content
+  modalContainer: {
+    width: "80%", // Width relative to screen
+    backgroundColor: "white",
+    borderRadius: 25, // Large rounded corners for modern look
+    padding: 30,
+    alignItems: "center",
+    
+    // --- SHADOWS ---
+    // Android
+    elevation: 15,
+    // iOS
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+  },
+
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+    marginTop: 15,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+
+  // Description text within the modal
+  modalDescription: {
+    fontSize: 15,
+    color: "#666",
+    lineHeight: 22,
+    textAlign: "center",
+    marginBottom: 25,
+  },
+
+  // Ensure the icon is centered and has space
+  errorIcon: {
+    alignSelf: "center",
+    marginBottom: 5,
   },
 });

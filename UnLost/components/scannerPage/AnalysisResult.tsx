@@ -40,6 +40,8 @@ type AnalysisResultProps = {
   descriptionGemini: string;
   isSensitive: boolean;
   onScanAgain: () => void; // Function to go back to camera
+  isFailed: boolean;
+  setIsFailed: (value: boolean) => void;
 };
 
 export function AnalysisResult({
@@ -50,6 +52,8 @@ export function AnalysisResult({
   descriptionGemini,
   isSensitive,
   onScanAgain,
+  isFailed,
+  setIsFailed,
 }: AnalysisResultProps) {
   // 1. STATE: Create a local copy of labels so we can edit them
   // 1. Use [...Spread] to combine the array and the string
@@ -186,6 +190,34 @@ export function AnalysisResult({
 
   return (
     <View style={styles.mainContainer}>
+       <Modal visible={isFailed} transparent={true} animationType="fade">
+          <View style={styles.notifOverlay}>
+            <View style={styles.notifContainer}>
+              {/* Visual Indicator */}
+              <Ionicons 
+                name="alert-circle" 
+                size={54} 
+                color="#FF4B4B" 
+                style={styles.notifIcon} 
+              />
+              
+              {/* Text Content */}
+              <Text style={styles.notifTitle}>Analysis Failed</Text>
+              <Text style={styles.notifMessage}>
+                The AI model was unable to analyze the image. Please enter the tags and descriptions manually.
+              </Text>
+
+              {/* Right-Aligned Action Area */}
+              <View style={styles.notifActionRow}>
+                <ButtonOrange 
+                  title="Got it" 
+                  onPress={() => setIsFailed(false)} 
+                  style={styles.notifButton}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -633,5 +665,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: 1,
+  },
+
+  // For alert
+  notifOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.65)", // Slightly deeper dim for focus
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notifContainer: {
+    width: "85%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    paddingBottom: 7,
+    // Note: No alignItems: center here so we can control children individually
+  },
+  notifIcon: {
+    alignSelf: 'center', // Keep icon centered
+    marginBottom: 10,
+  },
+  notifTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#1A1A1A",
+    textAlign: "center", // Center the title for balance
+    marginBottom: 12,
+  },
+  notifMessage: {
+    fontSize: 15,
+    color: "#555555",
+    textAlign: "center",
+    lineHeight: 22, // Better readability for instructions
+    marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  notifActionRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'flex-end', // Pushes button to the right
+  },
+  notifButton: {
+    width: '30%', // Professional smaller button width
+    minHeight: 30,
   },
 });
