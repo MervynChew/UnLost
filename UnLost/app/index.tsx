@@ -82,7 +82,26 @@ export default function AuthScreen() {
     return true;
   };
 
-  // 2. Login Function
+  // 2. Get Password Hint
+  const getPasswordHint = () => {
+    if (password.length === 0) return { message: '', color: '#888', icon: 'ellipse-outline', isStrong: false };
+    
+    if (password.length < 8) 
+      return { message: "Must be at least 8 characters", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    if (!/[A-Z]/.test(password)) 
+      return { message: "Add an uppercase letter", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    if (!/[a-z]/.test(password)) 
+      return { message: "Add a lowercase letter", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    if (!/\d/.test(password)) 
+      return { message: "Include at least one digit", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    if (!/[!@#$%^&*]/.test(password)) 
+      return { message: "Add a special character (!@#$%^&*)", color: '#E67E22', icon: 'alert-circle', isStrong: false };
+    
+    return { message: "Password is secure!", color: '#27AE60', icon: 'checkmark-circle', isStrong: true };
+  };
+  const hint = getPasswordHint();
+
+  // 3. Login Function
   async function signInWithEmail() {
     if (!validateInputs()) return;
     setLoading(true);
@@ -96,7 +115,7 @@ export default function AuthScreen() {
     setLoading(false);
   }
 
-  // 3. Sign Up Function
+  // 4. Sign Up Function
   async function signUpWithEmail() {
     if (!validateInputs()) return;
     setLoading(true);
@@ -119,24 +138,6 @@ export default function AuthScreen() {
     
     setLoading(false);
   }
-
-  const getPasswordHint = () => {
-    if (password.length === 0) return { message: '', color: '#888', icon: 'ellipse-outline', isStrong: false };
-    
-    if (password.length < 8) 
-      return { message: "Must be at least 8 characters", color: '#E67E22', icon: 'alert-circle', isStrong: false };
-    if (!/[A-Z]/.test(password)) 
-      return { message: "Add an uppercase letter", color: '#E67E22', icon: 'alert-circle', isStrong: false };
-    if (!/[a-z]/.test(password)) 
-      return { message: "Add a lowercase letter", color: '#E67E22', icon: 'alert-circle', isStrong: false };
-    if (!/\d/.test(password)) 
-      return { message: "Include at least one digit", color: '#E67E22', icon: 'alert-circle', isStrong: false };
-    if (!/[!@#$%^&*]/.test(password)) 
-      return { message: "Add a special character (!@#$%^&*)", color: '#E67E22', icon: 'alert-circle', isStrong: false };
-    
-    return { message: "Password is secure!", color: '#27AE60', icon: 'checkmark-circle', isStrong: true };
-  };
-  const hint = getPasswordHint();
 
   return (
     <View style={styles.mainContainer}>
