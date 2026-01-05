@@ -280,7 +280,7 @@ export default function AuthScreen() {
                   {loading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.buttonText}>{isLogin ? 'Sign In' : 'Sign Up'}</Text>
+                    <Text style={styles.buttonText}>{isLogin ? 'Login' : 'Sign Up'}</Text>
                   )}
                 </TouchableOpacity>
 
