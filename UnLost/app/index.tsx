@@ -17,6 +17,7 @@ import {
 import { supabase } from '../lib/supabase'; // Make sure this path points to your file
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from "../constants/theme";
+import Logo from "../components/General/Logo"
 
 // Tell Supabase to stop auto-refreshing if the app is closed
 AppState.addEventListener('change', (state) => {
@@ -152,9 +153,10 @@ export default function AuthScreen() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.scrollContainer}>
               {/* Header Section */}
-              <View style={styles.header}>
-                <Text style={styles.title}>UNLOST</Text>
-                <Text style={styles.subtitle}>{isLogin ? 'USM LOST & FOUND SYSTEM' : 'STUDENT REGISTRATION'}</Text>
+              <Logo/>
+            <View style={styles.header}>
+                {/* <Text style={styles.title}>UNLOST</Text> */}
+                <Text style={styles.subtitle}>{isLogin ? 'A USM lost & found system' : 'Student Registration'}</Text>
               </View>
 
               {/* Form Section */}
@@ -303,6 +305,7 @@ export default function AuthScreen() {
 // Styles
 const styles = StyleSheet.create({
   scrollContainer: {
+    // flex: 1,
     padding: 20,
     justifyContent: 'center',
     backgroundColor: '#fef7f7ff',
@@ -318,7 +321,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'fantasy',
-    fontSize: 55,
+    fontSize: 30,
     fontWeight: 'bold',
     color: '#4B2C85', // USM Purple-ish
     marginBottom: 10,
@@ -328,6 +331,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#666',
+    marginTop: 20,
   },
   form: {
     backgroundColor: '#F5F7FB',
