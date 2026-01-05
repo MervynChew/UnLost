@@ -63,8 +63,8 @@ export default function Post({ post, autoOpen, onAutoOpenComplete }: PostProps) 
         color: '#FFFFFF'
       };
     } else {
-      // Fallback for any other statuses
-      return;
+      // Fallback for any other statuses, for example "expired"
+      return {};
     }
   }, [post.status]);
 
