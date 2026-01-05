@@ -271,7 +271,7 @@ export default function ScanAI() {
           label: data.label ?? "Item Detected",
           color: data.color ?? "Unknown",
           location: locString,
-          description: dataGemini.success ? dataGemini.data.description : "Analysis unavailable.",
+          description: dataGemini.success ? dataGemini.data.description : "The AI could not identify this item. Please describe it manually.",
         });
       } else if (dataGemini.success) {
         // CASE 2: YOLO failed, but Gemini found it. Use Gemini's tags as a fallback.
