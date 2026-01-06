@@ -23,8 +23,6 @@ interface Notification {
   body: string;
   read: boolean;
   created_at: string;
-  action_type: string;
-  action_data: any;
   post_id?: number;
   deleted: boolean; 
 }
@@ -177,7 +175,7 @@ export default function NotificationsPage() {
       await markAsRead(notification.notification_id);
     }
 
-    if (notification.action_type === 'open_post' && notification.post_id) {
+    if (notification.post_id) {
       router.push(`/(tabs)/home?openPost=${notification.post_id}` as any);
     }
   };
