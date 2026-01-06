@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import icon from '../assets/icon.png';
+import logo from '../assets/logo.png';
 import './Sidebar.css';
 
 /*rmb to use the same colour scheme with Mervyn*/
@@ -23,7 +23,7 @@ export default function Sidebar() {
   return (
     <div className="sidebar-wrap">
       <div className="brand">
-        <img className="logoIcon" src={icon} alt = "icon"/>
+        <img className="logoIcon" src={logo} alt = "icon"/>
           <span className="brand-text">UNLOST Admin</span>
       </div>
       <nav className="nav">

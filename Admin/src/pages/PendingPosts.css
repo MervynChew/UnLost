@@ -247,6 +247,7 @@
     height: 310px;
     object-fit: cover;
     border-radius: 12px;
+    border: 1px solid #000000;
 }
 .main-image-wrapper {
     position: relative;

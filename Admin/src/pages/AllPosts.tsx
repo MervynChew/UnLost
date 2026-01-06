@@ -109,7 +109,7 @@ export default function AllPosts() {
       actor_type: 'admin',
       action_type: action,
       entity_type: 'posts',
-      target_id: postId // Using the post_id as the target
+      target_id: postId 
     });
   };
 

@@ -60,7 +60,7 @@ export default function PendingPosts() {
     try {
       const { error } = await supabase
         .from('posts')
-        .update({ status: 'lost' }) // Change from pending to lost
+        .update({ status: 'lost' })
         .eq('post_id', post.post_id);
 
       if (error) throw error;

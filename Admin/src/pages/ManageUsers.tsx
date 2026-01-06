@@ -37,6 +37,7 @@ interface User {
   postsCount: number;
   lastActive: string;
   profilePicture: string | null;
+  created_at: string;
   history: {
     posts: PostFromDB[];
     claims: ClaimFromDB[];
@@ -73,7 +74,7 @@ export default function ManageUsers() {
       const { data, error } = await supabase
         .from('profiles')
         .select(`
-          id,full_name,email,role,profile_picture
+          id,full_name,email,role,profile_picture,created_at
         `)
         .in('role', ['user', 'banned']);
 
@@ -96,6 +97,7 @@ export default function ManageUsers() {
               role: u.role || 'user',
               postsCount: count || 0,
               lastActive: 'Click View',
+              created_at: u.created_at,
               history: { posts: [], claims: [] }
             };
           })
@@ -286,8 +288,11 @@ export default function ManageUsers() {
   })
   .sort((a, b) => {
     // 3. Sorting logic
-    if (sortOrder === 'Newest') return 0; // Requires 'created_at' from DB to be accurate
-    if (sortOrder === 'Oldest') return 0;
+    const timeA = new Date(a.created_at).getTime();
+    const timeB = new Date(b.created_at).getTime();
+    
+    if (sortOrder === 'Newest') return timeB - timeA; // Requires 'created_at' from DB to be accurate
+    if (sortOrder === 'Oldest') return timeA - timeB;
     if (sortOrder === 'Most Active') return b.postsCount - a.postsCount;
     if (sortOrder === 'Least Active') return a.postsCount - b.postsCount;
     return 0;
@@ -470,7 +475,6 @@ export default function ManageUsers() {
         {viewingHistoryItem && !isLoadingPost && (
           <div className="modal-overlay" onClick={() => setViewingHistoryItem(null)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <button className="close-modal" onClick={() => setViewingHistoryItem(null)}>×</button>
 
               <h2 className="modal-title">
                 {('post_id' in viewingHistoryItem) ? 'Post Details' : 'Claim Details'}
@@ -482,7 +486,8 @@ export default function ManageUsers() {
                 </div>
 
                 <section className="detail-section">
-                  <h3>Posted By</h3>
+                  <h3>{isClaimItem(viewingHistoryItem) ? 'Claimed By' : 'Posted By'}</h3>
+                  
                   <div className="user-info">
                     <div className="user-avatar">
                       {selectedUser?.profilePicture ? (

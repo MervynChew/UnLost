@@ -102,9 +102,9 @@ export default function App() {
             <main className="content">
               <Routes>
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/all-posts" element={<AllPosts />} />
-                <Route path="/pending-posts" element={<PendingPosts />} />
                 <Route path="/manage-users" element={<ManageUsers />} />
+                <Route path="/pending-posts" element={<PendingPosts />} />
+                <Route path="/all-posts" element={<AllPosts />} />
                 <Route path="/logs" element={<Logs />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>

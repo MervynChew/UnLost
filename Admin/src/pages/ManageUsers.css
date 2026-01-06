@@ -429,24 +429,24 @@
 }
 
 .history-sub-title {
-  font-size: 13px; /* Reduced from 14px */
+  font-size: 13px; 
   color: #666;
-  margin-bottom: 10px; /* Reduced from 12px */
+  margin-bottom: 10px; 
   font-weight: 600;
 }
 
-/* FIXED: History card styling - Made more compact */
 .history-card {
   display: flex;
-  gap: 15px; /* Reduced from 20px */
-  padding: 14px 16px; /* Reduced from 18px 20px */
-  border-radius: 12px; /* Reduced from 15px */
-  margin-bottom: 10px; /* Reduced from 12px */
+  gap: 15px;
+  padding: 14px 16px; 
+  border-radius: 12px; 
+  margin-bottom: 10px; 
   flex-direction: row;
   align-items: center;
-  min-height: 75px; /* Reduced from 90px */
+  min-height: 75px;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #000000; 
 }
 
 .history-grid-info {
