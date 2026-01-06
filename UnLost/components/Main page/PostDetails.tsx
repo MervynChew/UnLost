@@ -1898,7 +1898,7 @@ export default function PostDetails({ propId, onClose }: Props) {
               setSectionOffsets(prev => ({ ...prev, "Item Retrieval": y }));
             }}
           >
-            <Seperator title="Item Retrieval"/>
+            <Seperator title="Confirmation"/>
             <Confirmation
               scheduleRequestId={scheduleRequest.request_id}
               postId={Number(id)}

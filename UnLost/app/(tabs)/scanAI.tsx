@@ -257,7 +257,7 @@ export default function ScanAI() {
       const dataGemini = await responseGemini.json();
 
       // Privacy Check: Verify if the AI flagged the item as private (e.g., Bank Cards)
-      if (dataGemini?.data?.sentitive?.toLowerCase() === 'sensitive') { 
+      if (dataGemini?.data?.sensitive?.toLowerCase() === 'sensitive') { 
         Alert.alert("Privacy Warning", "The image may contain sensitive information.");
         setIsSensitive(true);
       }
