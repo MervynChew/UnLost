@@ -1,3 +1,5 @@
 .env
 datasets/
 try see change class/
+__pycache__/
+*.pyc

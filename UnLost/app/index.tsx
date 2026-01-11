@@ -106,13 +106,109 @@ export default function AuthScreen() {
     if (!validateInputs()) return;
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
+    try {
+      console.log('========== LOGIN ATTEMPT ==========');
+      console.log('Email:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
 
-    if (error) Alert.alert('Login Failed', error.message);
-    setLoading(false);
+      console.log('Auth Response:', { 
+        hasUser: !!data?.user, 
+        hasSession: !!data?.session,
+        error: error?.message 
+      });
+
+      if (error) {
+        console.log('Authentication failed:', error.message);
+        Alert.alert('Login Failed', error.message);
+        setLoading(false);
+        return;
+      }
+
+      const user = data.user;
+      const session = data.session;
+
+      if (!user) {
+        console.log('No user data returned');
+        Alert.alert('Error', 'No user data returned.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('User authenticated:', {
+        userId: user.id,
+        email: user.email,
+        hasSession: !!session
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      console.log('Fetching user profile from database...');
+      
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      console.log('Profile fetch result:', {
+        profile,
+        error: profileError?.message,
+        hasProfile: !!profile,
+        role: profile?.role
+      });
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        await supabase.auth.signOut();
+        Alert.alert('Error', `Could not verify user permissions: ${profileError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!profile) {
+        console.error('No profile found for user');
+        await supabase.auth.signOut();
+        Alert.alert('Error', 'No profile found for this user.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('User role:', profile.role);
+
+      if (profile.role !== 'user') {
+        console.log('Access denied - Role:', profile.role);
+        
+        const { error: signOutError } = await supabase.auth.signOut();
+        console.log('Sign out result:', signOutError ? `Error: ${signOutError.message}` : 'Success');
+        
+        let title = 'Access Restricted';
+        let message = 'Your account is not allowed to access this application.';
+        
+        if (profile.role === 'disabled') {
+          message = 'Your account has been disabled. Please contact the administrator.';
+        } else if (profile.role === 'admin') {
+          title = 'Admin Account Detected';
+          message = 'Admin accounts must use the Management Portal, not the mobile app.';
+        }
+
+        Alert.alert(title, message);
+        setLoading(false);
+        return;
+      }
+
+      console.log('Login successful! User role verified as "user"');
+      console.log('========== LOGIN COMPLETE ==========');
+
+    } catch (err) {
+      console.error('Unexpected error during sign in:', err);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   // 4. Sign Up Function
