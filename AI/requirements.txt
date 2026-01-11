@@ -3,3 +3,9 @@ uvicorn
 python-multipart
 google-generativeai
 pydantic
+opencv-python
+numpy
+torch
+torchvision
+Pillow
+python-dotenv
