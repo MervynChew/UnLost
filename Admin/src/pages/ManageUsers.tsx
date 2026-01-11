@@ -232,37 +232,57 @@ export default function ManageUsers() {
 
   const executeDelete = async () => {
     if (!userToDelete) return;
-    const { data: { user } } = await supabase.auth.getUser();
 
     try {
-      const { error } = await supabase
+      console.log('Starting user deletion process...');
+      
+      // Get the current admin user FIRST before any deletion
+      const { data: { user: adminAuth } } = await supabase.auth.getUser();
+      if (!adminAuth) {
+        throw new Error('No admin user found');
+      }
+
+      // Log the admin action BEFORE deleting - use admin's ID as actor, not the deleted user
+      console.log('Logging admin action...');
+      const { error: logError } = await supabase.from('audit_logs').insert({
+        actor_id: adminAuth.id,  // The ADMIN doing the deletion
+        actor_name: users.find(u => u.id === adminAuth.id)?.name || 'Admin',
+        actor_type: 'admin',
+        action_type: 'User Account Deleted',
+        entity_type: 'profiles',
+        target_id: userToDelete.id  // The user BEING deleted
+      });
+
+      if (logError) {
+        console.error('Failed to log admin action:', logError);
+        throw new Error('Failed to log deletion: ' + logError.message);
+      }
+
+      // Now delete the user - CASCADE will handle posts, schedules, notifications
+      console.log('Deleting user profile (CASCADE will handle related data)...');
+      const { error: profileError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', userToDelete.id);
 
-      await supabase.from('audit_logs').insert({
-        actor_id: user?.id,
-        action_type: 'USER_DELETED',
-        entity_type: 'profiles',
-        target_id: userToDelete.id,
-      });
+      if (profileError) {
+        console.error('Failed to delete profile:', profileError);
+        throw new Error('Failed to delete user profile: ' + profileError.message);
+      }
 
-      if (error) throw error;
+      console.log('✅ User deletion completed successfully');
 
-      await logAdminActivity('User Account Deleted', userToDelete.id);
-
-      // Remove from the local list
+      // Update UI
       setUsers(users.filter(u => u.id !== userToDelete.id));
-      
-      // Close modals and return to list view if the deleted user was being viewed
       setShowDeleteModal(false);
-      setViewMode('list'); 
+      setViewMode('list');
       setSelectedUser(null);
-      
-      alert("User account and profile deleted successfully.");
-    } catch (err) {
-      console.error("Delete failed", err);
-      alert("Action failed.");
+
+      alert(`User "${userToDelete.name}" and all associated data have been permanently deleted.`);
+
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      alert(`Failed to delete user: ${err.message || 'Unknown error'}`);
     }
   };
 
