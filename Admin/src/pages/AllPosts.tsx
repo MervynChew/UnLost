@@ -18,6 +18,7 @@ export default function AllPosts() {
     meeting_point: string;
     description: string;
     post_image: string; 
+    sensitive?: boolean;
     schedule_requests?: {
       status: string;
       meet_date: string;
@@ -62,6 +63,7 @@ export default function AllPosts() {
           )
         `)
         .in('status', ['lost', 'claimed', 'archived'])
+        .or('sensitive.is.null,sensitive.eq.false') // Exclude sensitive posts
         .order('created_at', { foreignTable: 'schedule_requests', ascending: false });
 
       if (statusFilter !== 'All') {
@@ -125,7 +127,8 @@ export default function AllPosts() {
       // 1. Fetch tags from the database
       const { data, error } = await supabase
         .from('posts')
-        .select('tags');
+        .select('tags')
+        .or('sensitive.is.null,sensitive.eq.false'); // Exclude sensitive posts
 
       if (error) throw error;
 

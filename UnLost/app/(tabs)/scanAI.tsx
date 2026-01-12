@@ -261,7 +261,7 @@ export default function ScanAI() {
         Alert.alert("Privacy Warning", "The image may contain sensitive information.");
         setIsSensitive(true);
       }
-
+      else setIsSensitive(false);
       // --- LOGIC TREE: DECIDE WHAT TO SHOW THE USER ---
 
       if (data.found) {
@@ -273,6 +273,10 @@ export default function ScanAI() {
           location: locString,
           description: dataGemini.success ? dataGemini.data.description : "The AI could not identify this item. Please describe it manually.",
         });
+        if (!dataGemini.success) {
+          setErrorModalVisible(true); // Show alert if Gemini failed
+          setIsSensitive(false);
+        }
       } else if (dataGemini.success) {
         // CASE 2: YOLO failed, but Gemini found it. Use Gemini's tags as a fallback.
         setResult({
@@ -292,6 +296,7 @@ export default function ScanAI() {
           description: "The AI could not identify this item. Please describe it manually.",
         });
         setErrorModalVisible(true);
+        setIsSensitive(false);
       }
     } catch (error) {
       // CASE 4: Network Error. Ensure the app doesn't crash and still shows the photo.
@@ -303,6 +308,7 @@ export default function ScanAI() {
         description: "Network failed. Please provide a manual description.",
       });
       setErrorModalVisible(true);
+      setIsSensitive(false);
     } finally {
       setLoading(false); // Stop the "Analyzing..." spinner
     }

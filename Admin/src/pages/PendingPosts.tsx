@@ -15,6 +15,7 @@ interface Post {
   status: string;
   description: string;
   post_image: string;
+  sensitive?: boolean;
 }
 
 export default function PendingPosts() {
@@ -37,7 +38,7 @@ export default function PendingPosts() {
       const { data, error } = await supabase
         .from('posts')
         .select('*, profiles(full_name)')
-        .eq('status', 'pending')
+        .eq('sensitive', true) // Fetch posts where sensitive is TRUE
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -60,7 +61,7 @@ export default function PendingPosts() {
     try {
       const { error } = await supabase
         .from('posts')
-        .update({ status: 'lost' })
+        .update({ sensitive: false }) // Set sensitive to FALSE on approval
         .eq('post_id', post.post_id);
 
       if (error) throw error;
@@ -105,7 +106,7 @@ export default function PendingPosts() {
       // 1. Revert the status in the Database
       const { error } = await supabase
         .from('posts')
-        .update({ status: 'pending' })
+        .update({ sensitive: true })
         .eq('post_id', postToRestore.post_id);
 
       if (error) throw error;
@@ -319,7 +320,7 @@ export default function PendingPosts() {
             <textarea className="rejection-textarea" placeholder="Additional details..." onChange={(e) => setAdditionalDetails(e.target.value)} />
             <div className="rejection-footer">
               <button className="btn-cancel" onClick={resetRejectionState}>Cancel</button>
-              <button className="btn-send-reject" onClick={handleRejectConfirm}>Send Rejection</button>
+              <button className="btn-send-reject" onClick={handleRejectConfirm}>Reject</button>
             </div>
           </div>
         </div>

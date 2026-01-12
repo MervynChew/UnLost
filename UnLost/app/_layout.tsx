@@ -7,6 +7,10 @@ import { supabase } from '../lib/supabase';
 import { registerForPushNotificationsAsync, setupNotificationListeners } from '../lib/notificationService';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { useAuthMonitor } from '../lib/useAuthMonitor'; // ✅ Import the hook
+import { LogBox } from 'react-native';
+
+// ignore the notification warning
+LogBox.ignoreLogs(['expo-notifications: Android Push notifications']);
 
 // ✅ Create a wrapper component that only renders when logged in
 function AuthenticatedApp({ session }: { session: Session }) {

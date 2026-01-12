@@ -71,14 +71,14 @@ export default function Dashboard() {
         // Fetch Stats from 'posts' table
         const { data: posts, error: postsError } = await supabase
           .from('posts')
-          .select('status, created_at, tags');
+          .select('status, created_at, tags, sensitive');
 
         if (postsError) throw postsError;
 
         // Calculate KPI Stats
         const lost = posts.filter(p => p.status === 'lost').length;
         const claimed = posts.filter(p => p.status === 'claimed').length;
-        const pending = posts.filter(p => p.status === 'pending').length;
+        const pending = posts.filter(p => p.sensitive === true).length;
         const total = posts.length;
         const recoveryRate = total > 0 ? ((claimed / total) * 100).toFixed(1) : '0.0';
 
@@ -86,7 +86,7 @@ export default function Dashboard() {
         setStats({
           totalLost: lost,
           totalFound: claimed, 
-          pendingPosts: pending || 0,
+          pendingPosts: pending,
           recoveryRate: parseFloat(recoveryRate),
         });
 

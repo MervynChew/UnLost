@@ -200,16 +200,28 @@ export default function ProfileScreen({ onClose, userId, onProfileUpdate }: Prof
     let statusBg = forceClaimed ? "#4CAF50" : (post.sensitive ? "#FFD700" : (post.status === 'claimed' ? "#4CAF50" : "#FF6B6B"));
     let statusColor = (statusText === "Being Reviewed") ? "#000" : "#fff";
 
+    // Check if the item is under review
+    const isBeingReviewed = statusText === "Being Reviewed";
+
     return (
       <TouchableOpacity 
         key={keyValue} 
-        style={styles.historyCard}
-        onPress={() => setSelectedPostId(post.post_id)} // Open Details
+        style={[styles.historyCard, isBeingReviewed && { opacity: 0.8 }]} 
+        onPress={() => setSelectedPostId(post.post_id)} 
+        disabled={isBeingReviewed} // 1. Disable click if being reviewed
       >
-        <Image
-          source={post.post_image ? { uri: post.post_image } : require('../assets/image/Profile/default_profile.avif')} 
-          style={styles.historyImage} 
-        />
+        {/* 2. Conditionally render Icon OR Image */}
+        {isBeingReviewed ? (
+          <View style={[styles.historyImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#e0e0e0' }]}>
+            <Ionicons name="eye-off-outline" size={30} color="#757575" />
+          </View>
+        ) : (
+          <Image
+            source={post.post_image ? { uri: post.post_image } : require('../assets/image/Profile/default_profile.avif')} 
+            style={styles.historyImage} 
+          />
+        )}
+
         <View style={styles.historyDetails}>
           <Text style={styles.dateText}>Date of Post:</Text>
           <Text style={styles.dateVal}>{formatDate(post.found_date)}</Text>
