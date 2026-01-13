@@ -265,6 +265,7 @@ export default function ScanAI() {
       // --- LOGIC TREE: DECIDE WHAT TO SHOW THE USER ---
 
       if (data.found) {
+        setIsSensitive(false);
         // CASE 1: YOLO succeeded. We show the AI-boxed image and Gemini's description.
         setResult({
           image: `data:image/jpeg;base64,${data.image_base64}`,
@@ -278,6 +279,7 @@ export default function ScanAI() {
           setIsSensitive(false);
         }
       } else if (dataGemini.success) {
+        setIsSensitive(false);
         // CASE 2: YOLO failed, but Gemini found it. Use Gemini's tags as a fallback.
         setResult({
           image: uri, 
@@ -307,8 +309,8 @@ export default function ScanAI() {
         location: locString,
         description: "Network failed. Please provide a manual description.",
       });
-      setErrorModalVisible(true);
       setIsSensitive(false);
+      setErrorModalVisible(true);
     } finally {
       setLoading(false); // Stop the "Analyzing..." spinner
     }

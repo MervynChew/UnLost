@@ -70,11 +70,11 @@ export default function HomeScreen() {
       // Use 'full_name' as from profiles table
       console.log("✅ Fetched username:", data.full_name);
 
-      // If full name is too long, only the first word is taken to display on main page
+      // If full name is too long, only the first and second word is taken to display on main page
       let displayName = data.full_name;
       if (displayName.length > 16) { // For names over 16 characters
-        // Get only the first word
-        displayName = displayName.split(' ')[0];
+        // Get only the first and second word
+        displayName = displayName.split(' ').slice(0, 2).join(' ');
         console.log("📏 Username truncated to:", displayName);
       }
       setUsername(displayName);
@@ -141,6 +141,45 @@ export default function HomeScreen() {
       console.log('Error in fetchPosts:', err);
     }
   };
+
+  useEffect(() => {
+    fetchPosts(); // load initial posts
+
+    // Create a real-time channel
+    const postsChannel = supabase
+      .channel('posts')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'posts' },
+        (payload: any) => {
+          console.log('New post added!', payload.new);
+          const newPost = payload.new;
+
+          // Apply filters if needed
+          if (newPost.sensitive) return;
+          if (statusFilter === 'Unclaimed' && newPost.status !== 'lost') return;
+          if (statusFilter === 'Claimed' && newPost.status !== 'claimed') return;
+
+          if (searchTags.length > 0) {
+            const matches = newPost.tags?.some((postTag: string) =>
+              searchTags.some(searchTag =>
+                postTag.toLowerCase().includes(searchTag.toLowerCase())
+              )
+            );
+            if (!matches) return;
+          }
+
+          setPosts(prev => [newPost, ...prev]);
+        }
+      )
+      .subscribe();
+
+    // Cleanup
+    return () => {
+      supabase.removeChannel(postsChannel);
+    };
+  }, [statusFilter, searchTags]);
+
 
   // Handle notification navigation, auto-open modal
   useEffect(() => {
